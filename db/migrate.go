@@ -90,6 +90,11 @@ func Copy(src, dst *gorm.DB, batchSize int) (map[string]int64, error) {
 		}
 		table := stmt.Schema.Table
 
+		var want int64
+		if err := src.Model(m).Count(&want).Error; err != nil {
+			return nil, fmt.Errorf("count source %s: %w", table, err)
+		}
+
 		var copied int64
 		err := dst.Transaction(func(tx *gorm.DB) error {
 			var err error
@@ -98,6 +103,10 @@ func Copy(src, dst *gorm.DB, batchSize int) (map[string]int64, error) {
 		})
 		if err != nil {
 			return nil, fmt.Errorf("copy %s: %w", table, err)
+		}
+
+		if copied != want {
+			return nil, fmt.Errorf("copy %s: %d rows in source, %d copied", table, want, copied)
 		}
 
 		res[table] = copied

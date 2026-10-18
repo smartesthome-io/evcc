@@ -78,7 +78,7 @@ func New(driver, dsn string) (*gorm.DB, error) {
 		}
 
 		// Store the expanded file path for later use
-		filePath = file
+		filePath, location = file, ""
 
 		// WAL with synchronous NORMAL syncs to disk on checkpoint instead of every commit,
 		// a power loss may drop the latest commits but cannot corrupt the database.
