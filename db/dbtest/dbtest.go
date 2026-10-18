@@ -22,6 +22,21 @@ func IsPostgres() bool {
 	return db.DriverFromDSN(db.SQLite, os.Getenv(Env)) == db.Postgres
 }
 
+// RequireTimescale skips tests that need the timescaledb extension, unless EVCC_TEST_TIMESCALE is set
+func RequireTimescale(t testing.TB) {
+	t.Helper()
+	if !IsPostgres() {
+		t.Skip("postgres only")
+	}
+	if os.Getenv("EVCC_TEST_TIMESCALE") != "" {
+		require.True(t, db.HasTimescale(New(t)), "timescaledb extension missing")
+		return
+	}
+	if !db.HasTimescale(New(t)) {
+		t.Skip("timescaledb only")
+	}
+}
+
 // SkipPostgres skips tests that depend on SQLite behavior
 func SkipPostgres(t testing.TB) {
 	t.Helper()
@@ -90,7 +105,8 @@ func Target(t testing.TB) (string, string) {
 	require.NoError(t, err)
 
 	q := u.Query()
-	q.Set("search_path", schema)
+	// public holds the timescaledb functions
+	q.Set("search_path", schema+",public")
 	u.RawQuery = q.Encode()
 
 	return db.Postgres, u.String()
