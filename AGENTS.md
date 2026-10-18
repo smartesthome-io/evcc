@@ -1,343 +1,199 @@
-# Agent Rules for evcc Project
+# Agent Rules for evcc
 
-This file provides guidance to AI coding agents when working with code in this repository.
+evcc is an extensible EV charge controller and home energy management system: Go backend, Vue 3 + TypeScript frontend, plugin-based device integrations, local-first (no cloud dependency).
 
-## Project Overview
+Every non-trivial change goes through the six phases below, in order. Do not skip or merge phases, and do not start a phase before the previous gate is passed.
 
-- evcc is an extensible EV Charge Controller and home energy management system written in Go with a Vue.js frontend
-- The system manages electric vehicle charging, integrates with solar systems, and provides local energy management without cloud dependencies
-- Architecture follows a plugin-based approach for device integrations
+## Development Flow
 
-## Essential Commands
+```
+1 Refinement -> 2 Design -> 3 Design Review -> 4 Implementation -> 5 Testing -> 6 Implementation Review
+   [gate: human]  [-]        [gate: human]       [-]                [gate: green]   [gate: human]
+```
 
-- `make` - build full application (UI + Go binary)
-- `make build` - build Go binary only
-- `make ui` - build UI assets only
-- `make install` - install Go tools and dependencies
-- `make install-ui` - install Node.js dependencies (`vp install`)
-- `make test` - run Go tests
-- `make test-ui` - run frontend tests
-- `make lint` - run Go linting (golangci-lint)
-- `make lint-ui` - run frontend linting
-- `vp run dev` - start Vue dev server (http://127.0.0.1:7071)
-- `vp run playwright` - run integration tests
-- `build`, `openapi` and `test` are cached tasks in `vite.config.ts`, run through `vp run`
-- `evcc --config [file] --disable-auth` - run a throw-away instance for UI checks without password setup
-- `evcc --template-type [type] --template [file]` - test device templates
-- `make docs` - generate template documentation
+**Trivial changes** (typo, translation key, one-line fix with an obvious test, template param tweak) may collapse phases 1-3 into a two-sentence plan in the conversation. Say explicitly that you are taking the fast path. When in doubt, use the full flow.
+
+**Gates**: a human-gated phase ends with a short summary and an explicit question. Stop and wait for approval. Silence is not approval. If a later phase uncovers a flaw in an earlier artifact, go back, fix the artifact, and re-pass its gate. Do not patch around it in code.
+
+### 1. Refinement
+
+Goal: agree on _what_ and _why_ before thinking about _how_.
+
+- Read the linked issue/discussion (CONTRIBUTING requires one). Read the code that will be affected. Load the relevant `docs/agents/` files (see [Domain Knowledge](#domain-knowledge)).
+- Write down: problem statement, user-visible behavior, acceptance criteria (testable, one line each), explicit non-goals, affected components, open questions.
+- Ask the user about every open question that changes behavior or scope. Resolve what you can from code; do not ask what the code answers.
+- Surface conflicts with existing behavior, config compatibility (`evcc.yaml`, DB, API, MQTT/WebSocket payloads), and docs/template impact.
+- **Output**: a refinement note in the conversation (problem, criteria, non-goals, questions). **Gate**: user confirms scope and criteria.
+
+### 2. Design
+
+Goal: a concrete, reviewable plan that fits the existing architecture.
+
+- Base the design on the standards in this file and in `docs/agents/`. Prefer extending an existing package, interface, or pattern over introducing a new one. Name the existing code you build on.
+- Cover, as far as relevant: package/file placement, types and interfaces (capabilities via `api.Cap` and `implement`, generated code), data flow and concurrency (control loop, locking, context), config and template changes, DB migrations, API/OpenAPI and WebSocket changes, UI components and store usage, i18n keys, error handling, failure modes, performance on the control loop.
+- List alternatives considered with a one-line reason for rejecting each.
+- Include a **test plan** mapped to the acceptance criteria (which Go unit tests, which Playwright specs, which manual checks) and a **rollout/compat note** (breaking changes, migrations, deprecations).
+- Keep it as small as the criteria allow. No abstractions for hypothetical future needs.
+- **Output**: design document in the conversation, or `docs/design/<issue>-<slug>.md` for larger work (ask whether it should be committed). **Gate**: none, goes straight to review.
+
+### 3. Design Review
+
+Goal: catch problems while they are cheap.
+
+- Review as a separate pass, ideally by a fresh-context subagent that sees only the refinement note, the design, and the code, not the author's reasoning.
+- Checklist: meets every acceptance criterion; no scope creep; follows existing patterns and the standards below; concurrency and control-loop safety; failure and edge cases (NaN/Inf, missing device data, restart, partial config); backward compatibility; security (auth tier, secrets, input validation); testability; smaller alternative available?
+- Findings are ranked (blocker, should-fix, nit) with a concrete suggestion each. Update the design for every blocker and should-fix, or record why not.
+- **Output**: review findings plus the revised design. **Gate**: user approves the final design. Implementation does not start without it.
+
+### 4. Implementation
+
+Goal: build exactly the approved design.
+
+- Work on a feature branch, never on `master`. Small, focused commits in the style described under [Conventions](#conventions).
+- Follow the design. If reality forces a deviation, stop, update the design, tell the user, and get re-approval for material changes.
+- Write the tests from the test plan together with the code, not afterwards.
+- Never hand-edit generated files (`*_enumer.go`, `*_decorators.go`, mocks, `templates/docs`); change the source and regenerate (`make assets`, `make docs`, `make openapi`).
+- No drive-by refactors, no unrelated formatting changes, no new dependencies without a reason in the design.
+- **Output**: working tree with the change. **Gate**: proceed to testing.
+
+### 5. Testing
+
+Goal: evidence that the acceptance criteria hold, not just that the code compiles.
+
+Run what applies and fix failures before moving on:
+
+| Area                | Command                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| Go unit tests       | `make test` (or `go test ./path/...` while iterating)                                            |
+| Go race/vet         | `go test -race ./path/...`, `go vet ./...`                                                       |
+| Go lint             | `make lint` (golangci-lint + modernize)                                                          |
+| Generated artifacts | `make assets docs` then `make porcelain` (CI fails on a dirty tree)                              |
+| Frontend            | `make lint-ui` (format, oxlint, vue-tsc, i18n check), `make test-ui`                             |
+| Playwright          | `make ui build` first (tests use the binary), then `vpx playwright test tests/<spec>.spec.ts`    |
+| Templates           | `evcc --template-type <type> --template <file>`                                                  |
+| Manual UI check     | `evcc --config <file> --disable-auth` plus `vp run dev` (http://127.0.0.1:7071); exercise golden path, error states, loading states, German text length |
+
+- Every acceptance criterion maps to at least one automated test or an explicitly stated manual check. Report which.
+- Test failure paths too: errors, invalid or missing data, concurrent access, restart persistence.
+- If you cannot run something (hardware, network, browser), say so. Never claim it passed.
+- **Output**: a test report listing commands run and results, plus any criterion not covered. **Gate**: all checks green, no uncovered criterion without user acknowledgement.
+
+### 6. Implementation Review
+
+Goal: independent verification of the finished diff against the design.
+
+- Review the full diff (`git diff master...HEAD`) in a separate pass, ideally by a fresh-context subagent (`/code-review`, `/simplify`, `/security-review` as fitting).
+- Checklist: diff matches the approved design and nothing more; correctness and edge cases; error wrapping and logging (no secrets); concurrency and context handling; tests meaningful (would fail without the change); no dead code, stray debug output, or needless comments; i18n in sync; docs, schema, and OpenAPI updated; commit and PR text follow conventions.
+- Fix findings, re-run affected tests from phase 5, then report: findings fixed, findings not fixed and why.
+- **Output**: review summary. **Gate**: user accepts. Only then open or update the PR.
+
+After opening a PR: watch CI until every check finishes and fix failures on the same branch. Do not argue with review bots; implement the suggestion or resolve the thread.
 
 ## Domain Knowledge
 
-Deep documentation on specific subsystems is available in `docs/agents/`. Load what you need based on the task:
+Deep documentation lives in `docs/agents/`. Load what the task needs during refinement and design:
 
 | File                                                          | When to load                                                                 |
 | ------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | [Core Domain](docs/agents/core-domain.md)                     | Control loop, loadpoint logic, PV surplus, charge modes, tariffs, interfaces |
 | [Hardware Integrations](docs/agents/hardware-integrations.md) | Charger/meter/vehicle implementations, adding new devices                    |
 | [Easee Architecture](docs/agents/easee-architecture.md)       | Easee charger (REST+SignalR, async correlation, concurrency)                 |
-| [OCPP Forwarder](docs/agents/ocpp-forwarder.md)               | OCPP proxy/forwarder (sidecar relay to upstream OCPP server, read-only mode) |
-| [Plugin System](docs/agents/plugin-system.md)                 | Plugin layer (HTTP, MQTT, Modbus, SunSpec, JS)                               |
+| [OCPP Forwarder](docs/agents/ocpp-forwarder.md)               | OCPP proxy/forwarder (sidecar relay, read-only mode)                         |
+| [Plugin System](docs/agents/plugin-system.md)                 | Plugin layer (HTTP, MQTT, Modbus, SunSpec, JS), templates                    |
 | [Web UI & API](docs/agents/web-ui-api.md)                     | REST API, WebSocket, Vue frontend, authentication                            |
 | [API Security](docs/agents/api-security.md)                   | Auth modes, JWT/API key/session, two-tier checks, credential storage         |
-| [Provider Auth](docs/agents/provider-auth.md)                 | Third-party logins (OAuth, device code, tokens), template `auth` block, UI   |
-| [Chart Conventions](docs/agents/charts.md)                    | ECharts charts: axis units and scale rules, tooltips, layout                 |
-| [Energy Analytics](docs/agents/energy-analytics.md)           | Energy page metrics: attribution, cost/CO2, forecast accuracy, missing data  |
-| [Discovery Hints](docs/agents/discovery-hints.md)             | Vendor registry update, adding and reviewing template `discovery` hints      |
-
-### Loading guide by task type
-
-- **Charger implementation** — hardware-integrations + core-domain
-- **Easee charger work** — easee-architecture + core-domain
-- **Meter implementation** — hardware-integrations + plugin-system
-- **Vehicle implementation** — hardware-integrations
-- **UI/frontend work** — web-ui-api
-- **Chart work (ECharts, axes, tooltips)** — charts + web-ui-api
-- **API endpoint work** — web-ui-api + core-domain
-- **Auth / login / API key / permissions** — api-security + web-ui-api
-- **Vehicle or device cloud login (OAuth, tokens, captcha)** — provider-auth + hardware-integrations
-- **Config/template work** — plugin-system
-- **Discovery hints / vendor registry update** — discovery-hints + plugin-system
-- **Control loop / charging logic** — core-domain
-- **Energy page metrics (attribution, savings, accuracy)** — energy-analytics + charts
-- **Bug in any area** — core-domain + relevant topic file(s)
-
-## Architecture Guidelines
-
-### Core Components
-
-- **main.go** serves as entry point and embeds web assets and i18n files
-- **cmd/** contains CLI commands, application setup, and various utility commands (configure, detect, migrate, etc.)
-- **core/** contains core business logic with main files (loadpoint.go, site.go) and subdirectories:
-  - **loadpoint/** - EV charging point management modules
-  - **planner/** - Smart charging planning algorithms
-  - **coordinator/** - Multi-loadpoint coordination logic
-  - **session/** - Charging session management
-  - **vehicle/** - Vehicle-specific core logic
-  - **soc/** - State of charge handling
-- **api/** contains API definitions and types
-- **server/** handles HTTP server, WebSocket, MQTT, database operations, and various handlers
-- **charger/**, **meter/**, **vehicle/** contain device integrations
-- **tariff/** contains tariff integrations
-- **plugin/** implements plugin system for device and tariff communication
-- **assets/** contains Vue.js frontend application
-
-### Frontend Structure
-
-- **assets/js/** contains the main TypeScript/Vue.js application with:
-  - **views/** - Vue page components (App.vue, Config.vue, Sessions.vue, etc.)
-  - **components/** - Reusable Vue components
-  - **composables/** - Vue utility functions
-  - **types/** - TypeScript type definitions
-  - **utils/** - Utility functions
-  - **mixins/** - Vue mixins
-- **assets/css/** contains application stylesheets
-- **assets/public/** contains static assets and metadata
-- **i18n/** contains internationalization files
-- **tests/** contains Playwright integration tests and test configuration files
-- **dist/** contains built frontend assets (generated)
-
-## Writing Style
-
-- No em dashes (—) in comments, commit messages, or docs. Use periods, commas, or colons
-- Project name is `evcc`, always lowercase
-- In user-facing strings, only mention `evcc` when needed to understand the context. Inside evcc's own UI the self-reference is usually redundant
-- Acronyms uppercase in prose: OCPP, MQTT, HEMS, SoC
-- Terminology: agreed terms per language with explanations live in `i18n/glossary/` (`en.json` + `<lang>.json`, rules in `README.md`). Check it before wording user-facing strings (including API descriptions in `assets/js/types/evcc.ts` and `server/openapi.yaml`), and extend it when a new concept gets a name
-- Commit subjects: `Component: short description`, no trailing period. Sub-scope in parens: `Meter (Home Assistant): ...`. Use `chore:`/`fix:`/`docs:` only for non-feature changes
-
-## Comment Style
-
-- Prefer self-documenting code over comments; comment the _why_, not the _what_
-- Default to no comment. Only add one for a non-obvious constraint, invariant, workaround, or surprising behavior. Keep it to one line, two if necessary
-- Skip refs to the current task, PR, issue, or caller ("added for X flow", "see #1234"). Git history covers that
-- Exception: Go exported identifiers follow godoc convention. Short `// FuncName does X` summary starting with the identifier name
-
-## Go Coding Standards
-
-### Core Principles
-
-- Follow Go idioms and conventions (Effective Go)
-- Use `gofmt` for formatting, self-documenting names, early returns
-- Handle all errors explicitly with meaningful messages
-- Use interfaces for behavior contracts (small, focused, single responsibility)
-- Use `context.Context` for I/O, long-running, or cancelable operations
-- Organize code into logical packages with clear responsibilities
-- Prefer composition over inheritance, minimize external dependencies
-- Navigate Go symbols with go-to-definition and find-references rather than text search; reserve text search for comments and string literals
-
-### File Patterns
-
-- `_blueprint.go` - templates for new device implementations
-- `_enumer.go` - generated enum code
-- `*_decorators.go` - generated decorator pattern implementations
-- Validate interface implementations: `var _ Interface = (*Type)(nil)`
-- Capabilities: register via `implement.Has`/`May` only when a capability is _conditional_ (runtime/config detection, e.g. `if cp.PhaseSwitching { implement.Has(...) }`). For capabilities present on every code path, declare a plain exported method plus `var _ api.Interface = (*Type)(nil)` instead. `api.Cap` resolves static methods via direct type assertion, so unconditional `implement.Has` is redundant. A type with no conditional capabilities needs neither the `implement.Caps` embed nor `implement.New()`
-
-### Error Handling
-
-- Wrap errors with context: `fmt.Errorf("context: %w", err)`
-- Use `errors.As` and `errors.Is` for type checking
-- Use `errors.Join` for combining errors (prefer custom `joinErrors` helper)
-- Create domain-specific error types (ClassError, DeviceError)
-- Use `backoff.Permanent(err)` for non-retryable errors
-- Implement panic recovery with `defer` and `recover()` in script contexts
-
-### Testing & Code Generation
-
-- Use `testing` package with `testify/assert` and `testify/require`
-- Table-driven tests with struct definitions for multiple cases
-- Use `gomock` for interface mocking, `go:generate mockgen` for generation
-- Test both success and failure scenarios, use `require` for setup, `assert` for tests
-- Use `go:generate` for code generation, regenerate after interface/enum changes
-- Never manually edit generated files
-
-### Context & Concurrency
-
-- Use `context.Context` as first parameter for I/O operations
-- Use `context.WithTimeout`, `context.WithCancel` appropriately
-- Check `ctx.Done()` in long-running loops
-- Propagate context through goroutines for proper cancellation
-- Handle concurrent operations safely with Go's concurrency primitives
-
-### Data Validation
-
-- Filter `NaN` and `Infinity` values using `math.IsNaN()` and `math.IsInf()`
-- Validate numeric inputs from external sources
-- Use helper functions like `parseFloat()` that reject invalid values
-
-## Vue.js/TypeScript Frontend Standards
-
-### Core Architecture
-
-- Use Vue 3 Options API (preferred over Composition API)
-- Use reactive stores without Vuex/Pinia for cross-component state
-- Use global app instance (`window.app`) only for: notifications (`raise()`), offline status (`setOffline()`/`setOnline()`), clearing notifications (`clear()`)
-- Organize components by feature/domain in `assets/js/components/` subdirectories
-
-### Component Development
-
-- Use TypeScript for all new frontend code
-- Use `const` instead of `function` for component methods (e.g., `const updateType = () =>`)
-- Define TypeScript interfaces for component props, data, and API responses
-- Implement accessibility features (tabindex, aria-label, keyboard handlers)
-- Use descriptive names for variables, functions, and event handlers
-- Use early returns for readability
-- Prefer named computed properties over inline template expressions, even for single use. Readability beats saving lines
-- Use configured Axios instance for HTTP communication
-
-### State Management
-
-- Never access the store from sub-components; keep them stateless and pass the values they need as props (emit events back to the parent). Only top-level views read from the store. This keeps components reusable and testable (e.g. Storybook should never mock the store).
-- Use `reactive()` from Vue for simple global state
-- Implement property setters for nested object updates using helper functions
-- Use localStorage with reactive wrappers for persistent settings
-- Use Vue `watch()` for automatic persistence of settings changes
-- Separate concerns with dedicated stores (settings, application state)
-
-### TypeScript Patterns
-
-- Define comprehensive interfaces for API responses and application state
-- Use enums for constants (e.g., `THEME`, `CURRENCY`)
-- Extend global interfaces for window object augmentation
-- Use union types for flexible but type-safe configurations
-- Use generic types for reusable utility functions
-- Handle type assertions carefully with proper error handling
-- Create focused utility functions with proper TypeScript typing
-
-### Styling & Internationalization
-
-- Use CSS Custom Properties for theming (semantic names: `--evcc-green`, `--evcc-battery`)
-- No inline `style` attributes; use Bootstrap utility classes or scoped CSS (inline only for truly dynamic values)
-- Use the custom media queries from `assets/css/breakpoints.css` (`@media (--sm-and-up)`) for responsive breakpoints, never raw px `min-width`/`max-width`. Write mobile-first and override upwards instead of adding max-width queries
-- Use `$t()` function for all user-facing strings
-- Update both `i18n/en.json` and `i18n/de.json` for new strings
-- Use hierarchical namespace: `{section}.{component}.{purpose}`
-- Examples: `config.vehicle.titleAdd`, `main.vehicleStatus.charging`
-- Action patterns: `titleAdd`, `titleEdit`, `save`, `cancel`, `delete`, `validateSave`
-- Use placeholders for dynamic content: `{soc}`, `{duration}`, `{value}`
-- Prefer context-specific keys over generic ones
-- Test with German translations (20-40% longer text)
-- Keep separators and trailing punctuation (`: `, `…`, `—`) in the template, not in the translation value.
-
-### Testing
-
-- Write integration tests using Playwright for user workflows
-- Use Storybook for component development and visual testing
-- Use semantic selectors (roles, labels, button text); `data-testid` only when necessary
-- Test error states and loading states
-
-## Playwright Integration Testing
+| [Provider Auth](docs/agents/provider-auth.md)                 | Third-party logins (OAuth, device code, tokens), template `auth` block       |
+| [Chart Conventions](docs/agents/charts.md)                    | ECharts charts: axes, units, tooltips, layout                                |
+| [Energy Analytics](docs/agents/energy-analytics.md)           | Energy page metrics: attribution, cost/CO2, forecast accuracy                |
+| [Discovery Hints](docs/agents/discovery-hints.md)             | Vendor registry update, template `discovery` hints                           |
 
-### Test Organization
+Typical combinations: charger = hardware-integrations + core-domain; meter = hardware-integrations + plugin-system; vehicle = hardware-integrations (+ provider-auth for cloud login); UI = web-ui-api (+ charts); API endpoint = web-ui-api + core-domain; auth = api-security + web-ui-api; templates = plugin-system; bug = core-domain + the relevant topic file.
 
-- **Location**: `tests/` directory with `.spec.ts` files
-- **Configuration**: `.evcc.yaml` files for different test scenarios
-- **Utilities**: `tests/utils.ts` for common helpers, `tests/evcc.ts` for binary management
-- **Categories**: `config-*.spec.ts` (UI config), `sessions.spec.ts`/`plan.spec.ts` (workflows), `smart-cost.spec.ts`/`limits.spec.ts` (features), `backup-restore.spec.ts`/`auth.spec.ts` (integration)
+## Repository Map
 
-### Test Configuration
+- `main.go` entry point, embeds web assets and i18n. `cmd/` CLI commands and app setup.
+- `core/` business logic: `loadpoint/`, `planner/`, `coordinator/`, `session/`, `vehicle/`, `soc/`, `site/`, `circuit/`, optimizer. `api/` shared types and interfaces.
+- `server/` HTTP, WebSocket, MQTT, DB handlers, OpenAPI. `db/` persistence (SQLite).
+- `charger/`, `meter/`, `vehicle/`, `tariff/`, `hems/`, `messenger/` device and service integrations. `plugin/` protocol plugins. `templates/definition/` YAML device templates.
+- `assets/js/` Vue app (`views/`, `components/`, `composables/`, `types/`, `utils/`), `assets/css/`, `i18n/`. `tests/` Playwright specs plus `.evcc.yaml` fixtures.
 
-- Base URL: `http://127.0.0.1:7070`
-- Parallel execution with different ports per worker for isolation
-- Uses `./evcc` binary with test-specific configuration files
-- Each worker uses isolated temporary database files
-- Always runs with English UI language
+## Technical Standards
 
-### Essential Commands
+These are the criteria design and review are held against.
 
-- Must build before testing executing playwright `make ui build` since it uses the binary. For manual testing assets are build and reloaded automatically (vite dev).
-- Run tests: `vp run playwright` or `vpx playwright test`
-- Debug: `vpx playwright test --debug`
-- Specific test: `vpx playwright test tests/config-loadpoint.spec.ts`
+### Go
 
-### Selector Strategy
+- Idiomatic Go, `gofmt`/`gci` imports, early returns, small focused interfaces, composition over inheritance. Minimal external dependencies.
+- Handle every error; wrap with context (`fmt.Errorf("...: %w", err)`), check with `errors.Is`/`errors.As`. `backoff.Permanent(err)` for non-retryable errors.
+- `context.Context` first parameter for I/O and long-running work; propagate it into goroutines, honor `ctx.Done()`.
+- Never block the control loop. Guard shared state with the existing mutex/primitives.
+- Validate numeric input from devices: reject `NaN` and `Inf`.
+- Assert interface conformance: `var _ api.X = (*T)(nil)`. Use `implement.Has`/`May` only for _conditional_ capabilities; unconditional ones are plain methods.
+- New device implementations start from `_blueprint.go`. Prefer a plugin-based template over new Go code when possible.
+- Generated code (`go:generate`: enumer, decorators, mockgen) is regenerated, never edited.
+- Tests: `testing` + `testify` (`require` for setup, `assert` for checks), table-driven, `gomock` for interfaces. Cover success and failure.
+- Linters: `golangci-lint` (govet, staticcheck, gci, ...) and `go tool modernize`; both must pass.
 
-- **Preferred**: Semantic selectors using `getByRole()`, `getByLabel()`, `getByText()`
-- **Fallback**: `data-testid` only when semantic selectors aren't available
-- **Examples**:
-  - `page.getByRole("button", { name: "Add charger" })`
-  - `page.getByLabel("Manufacturer").selectOption("Demo charger")`
-  - `page.getByRole("listitem", { name: "Draggable: First Loadpoint" })` (using aria-label)
-  - `page.getByTestId("loadpoint")` (fallback only)
-- never use `.locator()` or `class` and `id`-based selectors
+### Frontend (Vue 3 + TypeScript)
 
-### Test Patterns
+- TypeScript for all new code; Vue Options API; typed props, data, and API responses.
+- Only top-level views read the store. Sub-components are stateless: props down, events up. Global state via `reactive()`; no Vuex/Pinia. `window.app` only for `raise()`, `setOffline()`/`setOnline()`, `clear()`.
+- Prefer named computed properties over inline template expressions. Component methods as `const` arrow functions. Use the configured Axios instance.
+- Accessibility: keyboard handlers, `aria-label`, `tabindex` where needed.
+- Styling: CSS custom properties, Bootstrap utilities or scoped CSS, no inline `style` except truly dynamic values. Breakpoints via `assets/css/breakpoints.css` custom media queries, mobile-first.
+- i18n: `$t()` for all user-facing strings; add keys to `i18n/en.json` and `i18n/de.json`; namespace `{section}.{component}.{purpose}`; placeholders for dynamic values; separators and trailing punctuation stay in the template. Check `i18n/glossary/` for terminology.
+- Tooling is Vite+ (`vp`): oxlint, oxfmt, `vue-tsc`. Charts follow `docs/agents/charts.md`.
 
-- Use test-specific `.evcc.yaml` configurations
-- Import utilities from `tests/utils.ts` for common operations
-- Focus on complete user journeys rather than isolated interactions
-- Use `expectModalVisible()` and `expectModalHidden()` helpers
-- Test configuration persistence across application restarts
-- Standard structure: import `{ start, stop, baseUrl }` from `./evcc`, use `test.afterEach(stop)`
-- Never use fixed timeouts. Wait on element state (visibility, count, value) instead.
-- Never use `page.waitForLoadState("networkidle")`. SPAs keep emitting requests (websockets, polling), so it either races or hangs. Wait for the specific element / value you need instead.
-- Keep test names and describe titles short and concrete. They should complement each other, not repeat. Prefer `describe("aux meter") test("create")` over `describe("aux meter") test("create aux meter and verify it appears")`. Drop scenario filler like "and lands in section", "appears correctly", "ensure".
+### Playwright
 
-## Device Integration & Configuration
+- Specs in `tests/*.spec.ts` with a dedicated `.evcc.yaml` per scenario; helpers in `tests/utils.ts`, binary handling in `tests/evcc.ts`; `test.afterEach(stop)`.
+- Semantic selectors only (`getByRole`, `getByLabel`, `getByText`); `data-testid` as a last resort; no `.locator()`, class, or id selectors.
+- No fixed timeouts, no `waitForLoadState("networkidle")`: wait on element state. Short, concrete test names.
 
-### Plugin System
+### Templates and Configuration
 
-- Device types: chargers, meters, vehicles, tariffs
-- Plugin protocols: Modbus, HTTP, MQTT, JavaScript, Go
-- Define device capabilities and configuration in templates at `templates/definition/[type]/`
-- Don't restate param properties that `util/templates/defaults.yaml` already defines for that param name. Properties (description, help, type, unit, default, example, required, advanced, mask, private, usages, …) are inherited from defaults; only specify a property in a template to give it a _different_ value. Restating the same value is redundant duplication: reference the param by `name` alone.
-- Test templates: `evcc --template-type [type] --template [file]`
-- Update docs after template changes: `make docs`
-- When implementing or debugging against a third-party device library (eebus-go/ship/spine-go, ocpp-go, modbus/SunSpec), consult the library's current upstream documentation before coding rather than relying on recalled API details
+- Templates in `templates/definition/<type>/`. Do not restate params already defined in `util/templates/defaults.yaml`; reference by `name`. Run `make docs` after changes.
+- YAML config, SQLite with migrations for persistence. Clear validation messages for invalid config.
+- Before coding against a third-party protocol library (eebus, ocpp-go, modbus/SunSpec), read its current upstream docs instead of relying on memory.
 
-### Configuration
+### Security and Performance
 
-- Use YAML format for all configuration files (default: `evcc.yaml`, or specify with `--config`)
-- Provide clear validation and error messages for invalid configurations
-- Support template-based device configurations with meaningful defaults
-- Use SQLite as default database (default: `evcc.db`, or specify with `--database`) with proper migrations and data integrity
+- Validate and sanitize all external input. TLS for external integrations. Respect the auth tiers in `docs/agents/api-security.md`.
+- Never log passwords, tokens, or personal data.
+- Index DB queries, bound caches, reuse connections.
 
-## Security & Performance Guidelines
+## Conventions
 
-### Security
+- Language: English everywhere (code, comments, commits, PRs, issues).
+- No em dashes in comments, commits, or docs. Project name is `evcc`, always lowercase. Acronyms uppercase in prose: OCPP, MQTT, HEMS, SoC. Mention `evcc` in user-facing strings only when needed.
+- Comments: default to none. Only the non-obvious _why_, one line. No references to tasks, PRs, or callers. Exported Go identifiers follow godoc (`// Name does X`).
+- Commit subjects: `Component: short description`, no trailing period; sub-scope in parens (`Meter (Home Assistant): ...`). `chore:`/`fix:`/`docs:` only for non-feature changes. Commit messages carry no AI footer and no `Co-Authored-By` trailer.
+- Keep changes focused: one topic per PR.
 
-- Validate all user inputs and sanitize data before database storage
-- Use secure protocols (TLS) for external integrations
-- Implement proper authentication and authorization
-- Never log sensitive information (passwords, tokens, personal data)
+### Pull Requests
 
-### Performance
+No headlines, concise, in this order:
 
-- Optimize database queries with appropriate indexes
-- Handle concurrent operations safely with Go's concurrency primitives
-- Implement proper caching strategies and connection pooling
-- Avoid blocking operations in main application loop
+1. References first line (`fixes #1123`, `replaces #222`). Skip only for trivial fixes.
+2. Intro: one or a few sentences on what and why.
+3. Bullets: most significant changes and user-facing implications first.
+4. `**TODO**` checklist only if open points remain.
 
-## Pull Request Descriptions
+No file paths, line numbers, or diff listings. No testing checklists. Never state that build, vet, race tests, or gofmt pass; they are a given.
 
-Structure PR descriptions in this order. No headlines. Be concise.
+### AI Attribution
 
-1. **References first line**: link related issues or PRs (`fixes #1123`, `replaces #222`, `pairs with org/repo#345`). PRs should almost always reference an issue or related PR — only skip in rare exceptions (e.g. trivial typo fixes).
-2. **Intro**: one or a few concise sentences framing what the PR does and why it was created this way. The full problem description belongs in the linked issue, not here.
-3. **Bullet list**: most significant changes or user-facing implications. Lead with the most significant.
-4. **TODO section** (only if open points remain):
-
-   ```
-   **TODO**
-   - [ ] item a
-   - [ ] item b
-   ```
-
-Avoid file paths, line numbers, or code listings reproduced from the diff. Include a code snippet only when it conveys the contract (event shape, API signature) more clearly than prose. No testing checklists, no co-author footers.
-
-Never state that `go build`, `go vet`, `go test -race`, or `gofmt` pass (or any "all checks/tests green" phrasing). These are non-negotiable givens that must already be fulfilled, not noteworthy results.
-
-## Pull Request CI and Reviews
-
-- After opening or updating a pull request, watch CI until every check has finished. Work is not done while checks are still running. Fix failures on the same branch and keep watching until the run is green.
-- Do not argue with automated review bots such as Sourcery. Either implement the suggestion or resolve the thread. No rebuttal comments.
-
-## AI Attribution
-
-Work produced by an AI agent must be attributable as such on GitHub. Append the tool's attribution footer to every PR description, issue body, review, and comment written by an agent, for example:
+Every PR description, issue body, review, and comment written by an agent ends with:
 
 ```
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
 
-Commit messages are the exception: no footer, and no `Co-Authored-By` trailer. Never dress agent work up as human review (e.g. "PR by an agent but looks good to me") in place of the footer.
+Never present agent work as human review.
+
+## Working Agreements
+
+- Ask before destructive or shared-state actions: force-push, `reset --hard`, deleting branches, posting to GitHub, modifying CI.
+- Do not add features, error handling, or abstractions beyond the approved design.
+- Prefer navigating Go code with go-to-definition and find-references over text search.
+- Report honestly: what was run, what passed, what was not verified.
