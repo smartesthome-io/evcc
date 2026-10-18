@@ -98,7 +98,7 @@ func TestBackupRestoreUnsupportedOnPostgres(t *testing.T) {
 	rec := httptest.NewRecorder()
 	getBackup()(rec, httptest.NewRequest(http.MethodGet, "/backup", nil))
 	assert.Equal(t, http.StatusNotImplemented, rec.Code)
-	assert.Contains(t, rec.Body.String(), "pg_dump")
+	assert.Contains(t, rec.Body.String(), "evcc db backup")
 
 	rec = httptest.NewRecorder()
 	restoreDatabase(func() { t.Fatal("must not shut down") })(rec, restoreRequest(t, []byte("data")))

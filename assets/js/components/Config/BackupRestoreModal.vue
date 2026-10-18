@@ -13,6 +13,9 @@
 
 			<p v-if="isPostgres" data-testid="backup-restore-postgres-note">
 				{{ $t("config.system.backupRestore.postgresNote") }}
+				<a :href="docsUrl" target="_blank" rel="noopener">
+					{{ $t("config.system.backupRestore.postgresDocs") }}
+				</a>
 			</p>
 
 			<div v-if="!isPostgres" class="mb-3">
@@ -235,6 +238,9 @@ export default defineComponent({
 		},
 		isPostgres() {
 			return this.databaseType === "postgres";
+		},
+		docsUrl() {
+			return "https://docs.evcc.io/docs/reference/configuration/database";
 		},
 	},
 	watch: {

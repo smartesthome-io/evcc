@@ -454,7 +454,9 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	jsonWrite(w, log)
 }
 
-var errBackupUnsupported = errors.New("backup and restore are not available for postgres, use pg_dump")
+const databaseDocsURL = "https://docs.evcc.io/docs/reference/configuration/database"
+
+var errBackupUnsupported = errors.New("backup and restore in the UI are not available for postgres, use the command line tools evcc db backup and evcc db restore, see " + databaseDocsURL)
 
 func getBackup() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
