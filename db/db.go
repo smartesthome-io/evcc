@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -9,7 +10,9 @@ import (
 	"strings"
 
 	"github.com/evcc-io/evcc/util"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/libtnb/sqlite"
 	"github.com/mitchellh/go-homedir"
 	"gorm.io/driver/postgres"
@@ -21,6 +24,9 @@ import (
 const (
 	SQLite   = "sqlite"
 	Postgres = "postgres"
+
+	// ApplicationName identifies evcc connections on the PostgreSQL server
+	ApplicationName = "evcc"
 )
 
 var (
@@ -59,6 +65,7 @@ func DriverFromDSN(driver, dsn string) string {
 
 func New(driver, dsn string) (*gorm.DB, error) {
 	var dialect gorm.Dialector
+	var pgDB *sql.DB
 	var memory bool
 
 	switch driver {
@@ -111,9 +118,13 @@ func New(driver, dsn string) (*gorm.DB, error) {
 
 	case Postgres:
 		// parsing redacts the password in its errors
-		cfg, err := pgconn.ParseConfig(dsn)
+		cfg, err := pgx.ParseConfig(dsn)
 		if err != nil {
 			return nil, fmt.Errorf("invalid postgres dsn: %w", err)
+		}
+
+		if _, ok := cfg.RuntimeParams["application_name"]; !ok {
+			cfg.RuntimeParams["application_name"] = ApplicationName
 		}
 
 		filePath = ""
@@ -121,8 +132,8 @@ func New(driver, dsn string) (*gorm.DB, error) {
 
 		util.NewLogger("main").INFO.Println("using postgres database:", location)
 
-		dialect = postgres.Open(dsn)
-
+		pgDB = stdlib.OpenDB(*cfg)
+		dialect = postgres.New(postgres.Config{Conn: pgDB})
 	default:
 		return nil, fmt.Errorf("invalid database type: %s not in [%s, %s]", driver, SQLite, Postgres)
 	}
@@ -131,7 +142,8 @@ func New(driver, dsn string) (*gorm.DB, error) {
 		Logger: &Logger{util.NewLogger("db")},
 	})
 	if err != nil {
-		if driver == Postgres {
+		if pgDB != nil {
+			_ = pgDB.Close()
 			return nil, fmt.Errorf("connect to postgres: %w", err)
 		}
 		return nil, err
@@ -139,6 +151,7 @@ func New(driver, dsn string) (*gorm.DB, error) {
 
 	if driver == Postgres {
 		if err := checkZone(db); err != nil {
+			_ = pgDB.Close()
 			return nil, err
 		}
 	}
