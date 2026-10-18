@@ -25,6 +25,7 @@ func (tariffValue) TableName() string {
 }
 
 func init() {
+	db.RegisterModels(new(tariffValue))
 	db.Register(func(_ *gorm.DB) error {
 		return db.Instance.AutoMigrate(new(tariffValue))
 	})

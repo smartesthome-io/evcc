@@ -18,6 +18,7 @@ type DB struct {
 var sessions Sessions
 
 func init() {
+	db.RegisterModels(new(Session))
 	db.Register(func(db *gorm.DB) error {
 		if err := db.AutoMigrate(new(Session)); err != nil {
 			return err

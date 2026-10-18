@@ -35,6 +35,7 @@ var (
 )
 
 func init() {
+	db.RegisterModels(new(setting))
 	db.Register(func(db *gorm.DB) error {
 		if err := db.AutoMigrate(new(setting)); err != nil {
 			return err

@@ -32,6 +32,7 @@ type entity struct {
 }
 
 func init() {
+	db.RegisterModels(new(entity), new(meter))
 	db.Register(func(_ *gorm.DB) error {
 		return SetupSchema()
 	})
