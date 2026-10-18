@@ -54,8 +54,15 @@ check-vp::
 install-ui:: check-vp
 	vp install
 
+# frontend to build and test: classic (ui/classic) or the name of a custom-ui/<name> package
+UI ?= classic
+
 ui:: check-vp
+ifeq ($(UI),classic)
 	vp run build
+else
+	vp build custom-ui/$(UI)
+endif
 
 assets::
 	go generate ./...
@@ -100,7 +107,11 @@ license-ui::
 	vp run license
 
 test-ui::
+ifeq ($(UI),classic)
 	vp run test
+else
+	cd custom-ui/$(UI) && vp test run
+endif
 
 test::
 	@echo "Running testsuite"

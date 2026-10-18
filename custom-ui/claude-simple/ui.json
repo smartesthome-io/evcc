@@ -1,0 +1,6 @@
+{
+  "name": "claude-simple",
+  "title": "Claude Simple",
+  "entry": "index.html",
+  "root": "dist"
+}

@@ -1,0 +1,105 @@
+interval: 1s
+
+ui:
+  customDir: custom-ui
+
+site:
+  title: Demo Home
+  meters:
+    grid: grid
+    pv:
+      - pv
+    battery:
+      - battery
+
+meters:
+  - name: grid
+    type: custom
+    power:
+      source: const
+      value: -1500
+  - name: pv
+    type: custom
+    power:
+      source: const
+      value: 7000
+  - name: battery
+    type: custom
+    power:
+      source: const
+      value: -1000
+    soc:
+      source: const
+      value: 64
+    capacity: 10
+  - name: charger_meter
+    type: custom
+    power:
+      source: const
+      value: 3000
+  - name: heatpump_meter
+    type: custom
+    power:
+      source: const
+      value: 800
+
+vehicles:
+  - name: ev
+    type: custom
+    title: Blue Car
+    capacity: 60
+    soc:
+      source: const
+      value: 42
+
+loadpoints:
+  - title: Garage
+    charger: charger
+    meter: charger_meter
+    vehicle: ev
+    mode: smart
+  - title: Heat Pump
+    charger: heatpump
+    meter: heatpump_meter
+    mode: smart
+
+chargers:
+  - name: charger
+    type: custom
+    enable:
+      source: js
+      script:
+    enabled:
+      source: js
+      script: |
+        true
+    status:
+      source: js
+      script: |
+        "C"
+    maxcurrent:
+      source: js
+      script: |
+        16
+  - name: heatpump
+    icon: heatpump
+    type: custom
+    enable:
+      source: js
+      script:
+    enabled:
+      source: js
+      script: |
+        true
+    status:
+      source: js
+      script: |
+        "C"
+    maxcurrent:
+      source: js
+      script: |
+        16
+    soc:
+      source: const
+      value: 45
+    features: [integrateddevice, heating, continuous]

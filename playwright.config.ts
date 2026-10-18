@@ -26,5 +26,20 @@ export default defineConfig({
         viewport: { width: 1400, height: 1400 },
       },
     },
+    {
+      name: "claude-simple-build",
+      testDir: "./custom-ui/claude-simple/tests",
+      testMatch: "build.setup.ts",
+    },
+    {
+      name: "claude-simple",
+      testDir: "./custom-ui/claude-simple/tests",
+      testMatch: "*.spec.ts",
+      dependencies: ["claude-simple-build"],
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1100, height: 1400 },
+      },
+    },
   ],
 });

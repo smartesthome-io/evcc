@@ -4,9 +4,9 @@
   "author": "evcc-io",
   "scripts": {
     "lint": "vp run lint:format && vp run lint:lint && vp run lint:tsc && vp run lint:i18n",
-    "lint:format": "vp fmt ui testkit i18n --write && vp fmt '**/*.{yaml,sh}' --write",
+    "lint:format": "vp fmt ui testkit custom-ui i18n --write && vp fmt '**/*.{yaml,sh}' --write",
     "lint:lint": "vp lint --fix --max-warnings=0",
-    "lint:tsc": "vue-tsc --noEmit",
+    "lint:tsc": "vue-tsc --noEmit && npm run typecheck --workspaces --if-present",
     "lint:i18n": "tsx i18n/check.ts",
     "dev": "vp dev",
     "playwright": "playwright install && playwright test --ui",
@@ -16,6 +16,9 @@
     "license": "license-compliance --production --report detailed --allow \"MIT;Apache-2.0;ISC;BSD-2-Clause;BSD-3-Clause;0BSD\""
   },
   "type": "module",
+  "workspaces": [
+    "custom-ui/*"
+  ],
   "main": "index.js",
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

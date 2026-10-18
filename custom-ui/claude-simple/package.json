@@ -1,0 +1,24 @@
+{
+  "name": "claude-simple",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A simple three-tab evcc frontend: Now, Today, Config",
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "test": "vp test run",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "echarts": "^6.1.0",
+    "vue": "^3.5.43"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.9",
+    "typescript": "^5.9.3",
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.0.0",
+    "vite-plus": "1.0.0",
+    "vue-tsc": "^3.3.11"
+  }
+}
