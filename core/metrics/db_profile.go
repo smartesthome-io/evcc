@@ -29,24 +29,18 @@ func profilePercentile() float64 {
 // (0..1, linear interpolation between ranks; 0 = average), optionally
 // restricted to a single weekday (strftime %w, 0=Sunday).
 func energyProfileFiltered(entity entity, from time.Time, weekday *int, percentile float64) (*[96]float64, error) {
-	database, err := db.Instance.DB()
-	if err != nil {
-		return nil, err
-	}
-
 	args := []any{entity.Id, from.Unix()}
 
 	var weekdayFilter string
 	if weekday != nil {
-		// CAST is required, strftime returns TEXT which never compares equal to an integer
-		weekdayFilter = ` AND CAST(strftime('%w', ts, 'unixepoch', 'localtime') AS INTEGER) = ?`
+		weekdayFilter = ` AND ` + db.LocalWeekday(db.Instance, "ts") + ` = ?`
 		args = append(args, *weekday)
 	}
 
 	// COALESCE guards against legacy rows with NULL energy
-	slots := `SELECT ts, COALESCE(energy, 0) AS energy, strftime('%H:%M', ts, 'unixepoch', 'localtime') AS slot
+	slots := `SELECT ts, COALESCE(energy, 0) AS energy, ` + db.LocalTime(db.Instance, "ts", "%H:%M") + ` AS slot
 		FROM meters
-		WHERE meter = ? AND ts >= ? AND COALESCE(recovered, 0) = 0` + weekdayFilter
+		WHERE meter = ? AND ts >= ? AND COALESCE(recovered, false) = false` + weekdayFilter
 
 	query := `WITH slots AS (` + slots + `)
 		SELECT min(ts) AS ts, avg(energy) AS energy
@@ -63,17 +57,17 @@ func energyProfileFiltered(entity entity, from time.Time, weekday *int, percenti
 			SELECT slot, energy,
 				min(ts) OVER (PARTITION BY slot) AS ts,
 				row_number() OVER (PARTITION BY slot ORDER BY energy) AS rn,
-				? * (count(*) OVER (PARTITION BY slot) - 1) + 1 AS pos
+				CAST(? AS DOUBLE PRECISION) * (count(*) OVER (PARTITION BY slot) - 1) + 1 AS pos
 			FROM slots
 		)
-		SELECT ts, sum(energy * (1 - abs(rn - pos))) AS energy
+		SELECT min(ts) AS ts, sum(energy * (1 - abs(rn - pos))) AS energy
 		FROM ranked
 		WHERE abs(rn - pos) < 1
 		GROUP BY slot
 		ORDER BY slot ASC`
 	}
 
-	rows, err := database.Query(query, args...)
+	rows, err := db.Instance.Raw(query, args...).Rows()
 	if err != nil {
 		return nil, err
 	}
@@ -113,20 +107,15 @@ func energyProfileFiltered(entity entity, from time.Time, weekday *int, percenti
 // energyProfileTemperatureBinned returns the energy per 15min slot (0..95) and integer outdoor
 // temperature bin (°C) over the past year at profilePercentile, bins with less than 2 samples dropped.
 func energyProfileTemperatureBinned(entity entity) (map[int]map[int]float64, error) {
-	database, err := db.Instance.DB()
-	if err != nil {
-		return nil, err
-	}
-
 	from := now.BeginningOfDay().AddDate(-1, 0, 0).Unix()
 
-	slots := `SELECT (CAST(strftime('%H', m.ts, 'unixepoch', 'localtime') AS INTEGER) * 4 +
-		CAST(strftime('%M', m.ts, 'unixepoch', 'localtime') AS INTEGER) / 15) AS slot_idx,
+	slots := `SELECT (CAST(` + db.LocalTime(db.Instance, "m.ts", "%H") + ` AS INTEGER) * 4 +
+		CAST(` + db.LocalTime(db.Instance, "m.ts", "%M") + ` AS INTEGER) / 15) AS slot_idx,
 		CAST(round(t.temperature) AS INTEGER) AS temp_bin,
 		m.energy AS energy
 	FROM meters m
 	JOIN tariffs t ON m.ts = t.ts
-	WHERE m.meter = ? AND m.ts >= ? AND COALESCE(m.recovered, 0) = 0
+	WHERE m.meter = ? AND m.ts >= ? AND COALESCE(m.recovered, false) = false
 		AND m.energy IS NOT NULL AND t.temperature IS NOT NULL`
 
 	args := []any{entity.Id, from}
@@ -143,7 +132,7 @@ func energyProfileTemperatureBinned(entity entity) (map[int]map[int]float64, err
 			SELECT slot_idx, temp_bin, energy,
 				row_number() OVER (PARTITION BY slot_idx, temp_bin ORDER BY energy) AS rn,
 				count(*) OVER (PARTITION BY slot_idx, temp_bin) AS cnt,
-				? * (count(*) OVER (PARTITION BY slot_idx, temp_bin) - 1) + 1 AS pos
+				CAST(? AS DOUBLE PRECISION) * (count(*) OVER (PARTITION BY slot_idx, temp_bin) - 1) + 1 AS pos
 			FROM slots
 		)
 		SELECT slot_idx, temp_bin, sum(energy * (1 - abs(rn - pos))) AS energy
@@ -152,7 +141,7 @@ func energyProfileTemperatureBinned(entity entity) (map[int]map[int]float64, err
 		GROUP BY slot_idx, temp_bin`
 	}
 
-	rows, err := database.Query(query, args...)
+	rows, err := db.Instance.Raw(query, args...).Rows()
 	if err != nil {
 		return nil, err
 	}

@@ -56,9 +56,13 @@ func SetupSchema() error {
 		return err
 	}
 
+	sqlite := db.Dialect(db.Instance) == db.SQLite
+
 	// enable FK constraints only here to make sure entity for metric exists
-	if err := db.Instance.Exec("pragma foreign_keys(1)").Error; err != nil {
-		return err
+	if sqlite {
+		if err := db.Instance.Exec("pragma foreign_keys(1)").Error; err != nil {
+			return err
+		}
 	}
 
 	// drop obsolete indexes
@@ -106,7 +110,7 @@ func SetupSchema() error {
 	}
 
 	// meter: ts migration
-	if m.HasTable(new(meter)) {
+	if sqlite && m.HasTable(new(meter)) {
 		types, err := m.ColumnTypes(new(meter))
 		if err != nil {
 			return err

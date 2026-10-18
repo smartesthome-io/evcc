@@ -194,7 +194,7 @@ func (c *Collector) LastSlotEnergy() (float64, bool) {
 	ts := c.accu.clock.Now().Truncate(tariff.SlotDuration).Add(-tariff.SlotDuration)
 
 	var m meter
-	if db.Instance.Where("meter = ? AND ts = ? AND COALESCE(recovered, 0) = 0", c.entity.Id, ts.Unix()).Limit(1).Find(&m).RowsAffected == 0 {
+	if db.Instance.Where("meter = ? AND ts = ? AND COALESCE(recovered, false) = false", c.entity.Id, ts.Unix()).Limit(1).Find(&m).RowsAffected == 0 {
 		return 0, false
 	}
 	return m.Energy, true

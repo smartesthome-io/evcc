@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"slices"
 	"sort"
@@ -138,7 +137,7 @@ func QueryEnergy(from, to time.Time, aggregate string, grouped bool, filter ...E
 	}
 
 	titleExpr := `COALESCE(NULLIF(e.title,''), e.name)`
-	timeCol := fmt.Sprintf(`strftime('%s', m.ts, 'unixepoch', 'localtime')`, format)
+	timeCol := db.LocalTime(db.Instance, "m.ts", format)
 
 	selectTitle := titleExpr + ` AS title`
 	groupCols := titleExpr + `, e."group", ` + timeCol
@@ -160,9 +159,11 @@ func QueryEnergy(from, to time.Time, aggregate string, grouped bool, filter ...E
 	}
 
 	// soc_temp only for a single slot bucket; omitted for grouped sums
-	socCols := `, CASE WHEN COUNT(*) = 1 THEN m.soc_temp END AS soc_temp, e.is_temp AS is_temp`
+	socCols := `, CASE WHEN COUNT(*) = 1 THEN MIN(m.soc_temp) END AS soc_temp, e.is_temp AS is_temp`
+	groupBy := groupCols + `, e.is_temp`
 	if grouped {
 		socCols = ``
+		groupBy = groupCols
 	}
 
 	tx := db.Instance.Table("meters m").
@@ -176,7 +177,7 @@ func QueryEnergy(from, to time.Time, aggregate string, grouped bool, filter ...E
 			SUM(CASE WHEN e."group" = 'grid' AND t.feedin IS NOT NULL THEN m.return_energy END) AS priced_return_energy` + socCols).
 		Joins("JOIN entities e ON m.meter = e.id").
 		Joins("LEFT JOIN tariffs t ON t.ts = m.ts").
-		Group(groupCols).
+		Group(groupBy).
 		Order(groupCols)
 
 	if !from.IsZero() {

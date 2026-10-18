@@ -125,7 +125,7 @@ func QueryTariffs(from, to time.Time, aggregate string) ([]TariffSlot, error) {
 		tx = tx.Select(`MIN(ts) AS ts,
 			AVG(grid) AS grid, MIN(grid) AS grid_min, MAX(grid) AS grid_max,
 			AVG(feedin) AS feed_in, MIN(feedin) AS feed_in_min, MAX(feedin) AS feed_in_max`).
-			Group(fmt.Sprintf(`strftime('%s', ts, 'unixepoch', 'localtime')`, format))
+			Group(db.LocalTime(db.Instance, "ts", format))
 	}
 
 	var res []TariffSlot
