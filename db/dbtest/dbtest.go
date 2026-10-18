@@ -28,11 +28,12 @@ func RequireTimescale(t testing.TB) {
 	if !IsPostgres() {
 		t.Skip("postgres only")
 	}
+	installed := db.HasTimescale(New(t))
 	if os.Getenv("EVCC_TEST_TIMESCALE") != "" {
-		require.True(t, db.HasTimescale(New(t)), "timescaledb extension missing")
+		require.True(t, installed, "timescaledb extension missing")
 		return
 	}
-	if !db.HasTimescale(New(t)) {
+	if !installed {
 		t.Skip("timescaledb only")
 	}
 }

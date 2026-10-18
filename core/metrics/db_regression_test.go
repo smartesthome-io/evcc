@@ -279,6 +279,7 @@ func TestTimeSeriesTablesAreHypertables(t *testing.T) {
 
 	// restart on converted tables
 	require.NoError(t, SetupSchema())
+	require.NoError(t, db.Instance.AutoMigrate(new(tariffValue)))
 	require.Equal(t, map[string]int64{"meters": chunk, "tariffs": chunk}, hypertables())
 
 	var count int64

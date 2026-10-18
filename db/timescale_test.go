@@ -69,15 +69,42 @@ func TestEnableHypertableFailureKeepsTable(t *testing.T) {
 }
 
 func TestEnableHypertableWithoutExtension(t *testing.T) {
-	if !dbtest.IsPostgres() || db.HasTimescale(dbtest.New(t)) {
+	if !dbtest.IsPostgres() {
 		t.Skip("plain postgres only")
 	}
 	conn := dbtest.New(t)
+	if db.HasTimescale(conn) {
+		t.Skip("plain postgres only")
+	}
 
 	require.NoError(t, conn.Exec("CREATE TABLE series (ts bigint NOT NULL, v real)").Error)
 
 	assert.False(t, db.EnableHypertable(conn, "series", "ts", chunk))
 	assert.True(t, conn.Migrator().HasTable("series"), "plain table stays")
+}
+
+// the extension lives in public, the connection does not search it
+func TestEnableHypertableOutsideSearchPath(t *testing.T) {
+	dbtest.RequireTimescale(t)
+	conn := dbtest.New(t)
+
+	// a session setting needs a single connection
+	sqlDB, err := conn.DB()
+	require.NoError(t, err)
+	sqlDB.SetMaxOpenConns(1)
+
+	require.NoError(t, conn.Exec("CREATE TABLE series (ts bigint NOT NULL, v real)").Error)
+	require.NoError(t, conn.Exec("SET search_path TO "+currentSchema(t, conn)).Error)
+
+	require.True(t, db.EnableHypertable(conn, "series", "ts", chunk))
+}
+
+func currentSchema(t *testing.T, conn *gorm.DB) string {
+	t.Helper()
+
+	var schema string
+	require.NoError(t, conn.Raw("SELECT current_schema()").Scan(&schema).Error)
+	return schema
 }
 
 func TestEnableHypertableSQLite(t *testing.T) {

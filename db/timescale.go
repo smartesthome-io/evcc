@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -10,16 +11,29 @@ import (
 
 var warnExtension sync.Once
 
+// timescaleSchema returns the schema of the timescaledb extension, empty if it is not installed
+func timescaleSchema(conn *gorm.DB) (string, error) {
+	var res []string
+	if err := conn.Raw("SELECT extnamespace::regnamespace::text FROM pg_extension WHERE extname = 'timescaledb'").Scan(&res).Error; err != nil {
+		return "", err
+	}
+
+	if len(res) == 0 {
+		return "", nil
+	}
+
+	return res[0], nil
+}
+
 // HasTimescale reports whether the timescaledb extension is installed in the database
 func HasTimescale(conn *gorm.DB) bool {
 	if Dialect(conn) != Postgres {
 		return false
 	}
 
-	var installed bool
-	err := conn.Raw("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'timescaledb')").Scan(&installed).Error
+	schema, err := timescaleSchema(conn)
 
-	return err == nil && installed
+	return err == nil && schema != ""
 }
 
 // EnableHypertable turns a table with an integer time column into a TimescaleDB hypertable.
@@ -32,15 +46,22 @@ func EnableHypertable(conn *gorm.DB, table, column string, chunk time.Duration) 
 
 	log := util.NewLogger("db")
 
-	if !HasTimescale(conn) {
+	schema, err := timescaleSchema(conn)
+	if err != nil {
+		log.WARN.Printf("cannot check for timescaledb extension, keeping the plain table %s: %v", table, err)
+		return false
+	}
+
+	if schema == "" {
 		warnExtension.Do(func() {
 			log.WARN.Println("enable timescaledb extension on your postgres db to remove this warning")
 		})
 		return false
 	}
 
-	err := conn.Exec(
-		"SELECT create_hypertable(?::regclass, ?::name, chunk_time_interval => ?::bigint, migrate_data => true, if_not_exists => true)",
+	// the schema comes quoted from the catalog
+	err = conn.Exec(
+		fmt.Sprintf("SELECT %s.create_hypertable(?::regclass, ?::name, chunk_time_interval => ?::bigint, migrate_data => true, if_not_exists => true)", schema),
 		table, column, int64(chunk.Seconds()),
 	).Error
 	if err != nil {
