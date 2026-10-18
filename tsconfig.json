@@ -1,6 +1,6 @@
 {
   "extends": "@vue/tsconfig/tsconfig.dom.json",
-  "include": ["env.d.ts", "assets/js/**/*", "tests/**/*", "scripts/**/*"],
+  "include": ["env.d.ts", "ui/classic/assets/js/**/*", "ui/classic/tests/**/*", "testkit/**/*", "scripts/**/*"],
   "compilerOptions": {
     "allowUnreachableCode": false,
     "allowUnusedLabels": false,
@@ -11,7 +11,7 @@
     "noUnusedParameters": true,
     "allowJs": true,
     "paths": {
-      "@/*": ["./assets/js/*"]
+      "@/*": ["./ui/classic/assets/js/*"]
     }
   }
 }

@@ -1,6 +1,6 @@
 import Mode from "./Mode.vue";
 import type { Meta, StoryFn } from "@storybook/vue3";
-import sk from "../../../../i18n/sk.json";
+import sk from "../../../../../../i18n/sk.json";
 import { reactive, ref } from "vue";
 
 export default {

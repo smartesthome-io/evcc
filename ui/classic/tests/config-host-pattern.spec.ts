@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, baseUrl } from "./evcc";
+import { start, stop, baseUrl } from "../../../testkit/evcc";
 import { expectModalVisible } from "./utils";
 
 const CONFIG_HOST_PATTERN = "config-host-pattern.evcc.yaml";

@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
-import { start, stop, baseUrl } from "./evcc";
+import { start, stop, baseUrl } from "../../../testkit/evcc";
 import { expectModalHidden, expectModalVisible } from "./utils";
 import { simulatorUrl, startSimulator, stopSimulator } from "./simulator";
 
@@ -10,7 +10,7 @@ const templateFlags = [
   "--template-type",
   "vehicle",
   "--template",
-  "tests/config-provider-auth-challenge-demo.tpl.yaml",
+  "ui/classic/tests/config-provider-auth-challenge-demo.tpl.yaml",
 ];
 
 test.beforeEach(async () => {

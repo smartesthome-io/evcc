@@ -1,4 +1,4 @@
-# GENERATED FILE - DO NOT EDIT (source: assets/js/types/evcc.ts, update: make openapi)
+# GENERATED FILE - DO NOT EDIT (source: ui/classic/assets/js/types/evcc.ts, update: make openapi)
 components:
   schemas:
     State:

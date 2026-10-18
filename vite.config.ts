@@ -51,7 +51,7 @@ export default defineConfig({
     },
     overrides: [
       {
-        files: ["assets/**/*.{ts,js,vue}", "tests/**/*.ts"],
+        files: ["ui/classic/assets/**/*.{ts,js,vue}", "ui/classic/tests/**/*.ts", "testkit/**/*.ts"],
         rules: {
           "no-param-reassign": "error",
           "no-unused-vars": ["error", { ignoreRestSiblings: true }],
@@ -82,18 +82,18 @@ export default defineConfig({
     printWidth: 100,
     trailingComma: "es5",
     sortPackageJson: false,
-    ignorePatterns: ["tests/custom-css.css"],
+    ignorePatterns: ["ui/classic/tests/custom-css.css"],
     overrides: [
       { files: ["**/*.vue"], options: { tabWidth: 4 } },
       { files: ["i18n/glossary/*.json"], options: { tabWidth: 4 } },
     ],
   },
-  root: "./assets",
+  root: "./ui/classic/assets",
   publicDir: "public",
   base: "./",
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./assets/js"),
+      "@": path.resolve(__dirname, "./ui/classic/assets/js"),
     },
   },
   css: {

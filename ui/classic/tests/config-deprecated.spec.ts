@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, restart, baseUrl } from "./evcc";
+import { start, stop, restart, baseUrl } from "../../../testkit/evcc";
 import { expectModalVisible, expectModalHidden } from "./utils";
 
 test.use({ baseURL: baseUrl() });
 
 const flags = ["--disable-auth", "--template-type", "meter", "--template"];
-const templateFlags = [...flags, "tests/config-deprecated-false.tpl.yaml"];
-const deprecatedFlags = [...flags, "tests/config-deprecated-true.tpl.yaml"];
+const templateFlags = [...flags, "ui/classic/tests/config-deprecated-false.tpl.yaml"];
+const deprecatedFlags = [...flags, "ui/classic/tests/config-deprecated-true.tpl.yaml"];
 
 test.beforeAll(async () => {
   await start(undefined, undefined, templateFlags);

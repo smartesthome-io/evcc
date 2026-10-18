@@ -29,7 +29,7 @@ const ROOT = "State";
 
 function buildRawSchema(): Schema {
   const generator = createGenerator({
-    path: "assets/js/types/evcc.ts",
+    path: "ui/classic/assets/js/types/evcc.ts",
     tsconfig: "tsconfig.json",
     type: ROOT,
     jsDoc: "extended",

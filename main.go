@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	//go:embed dist
+	//go:embed ui/classic/dist
 	web embed.FS
 
 	//go:embed i18n/*.json
@@ -24,7 +24,7 @@ func init() {
 	if !assets.Live() {
 		var err error
 
-		assets.Web, err = fs.Sub(web, "dist")
+		assets.Web, err = fs.Sub(web, "ui/classic/dist")
 		if err != nil {
 			panic(err)
 		}

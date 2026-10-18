@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, baseUrl } from "./evcc";
-import { validateState } from "../scripts/state-schema/validate";
+import { start, stop, baseUrl } from "../../../testkit/evcc";
+import { validateState } from "../../../scripts/state-schema/validate";
 
 test.use({ baseURL: baseUrl() });
 

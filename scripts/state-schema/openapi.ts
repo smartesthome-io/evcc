@@ -7,7 +7,7 @@ const OPENAPI_PATH = "server/openapi.yaml";
 const STATE_PATH = "server/openapi.state.yaml";
 const MCP_JSON_PATH = "server/mcp/openapi.json";
 
-const HEADER = `# GENERATED FILE - DO NOT EDIT (source: assets/js/types/evcc.ts, update: make openapi)
+const HEADER = `# GENERATED FILE - DO NOT EDIT (source: ui/classic/assets/js/types/evcc.ts, update: make openapi)
 `;
 
 export function writeStateSchemas(schemas: StateSchemas): void {

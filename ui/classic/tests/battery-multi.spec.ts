@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, baseUrl } from "./evcc";
+import { start, stop, baseUrl } from "../../../testkit/evcc";
 import { expectModalVisible, expectModalHidden } from "./utils";
 
 const CONFIG = "battery-multi.evcc.yaml";

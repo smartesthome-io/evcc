@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:net";
 import { test, expect } from "@playwright/test";
 import { Aedes } from "aedes";
-import { start, stop, restart, baseUrl } from "./evcc";
+import { start, stop, restart, baseUrl } from "../../../testkit/evcc";
 import { expectModalHidden, expectModalVisible } from "./utils";
 
 test.use({ baseURL: baseUrl() });

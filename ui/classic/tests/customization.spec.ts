@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, baseUrl } from "./evcc";
+import { start, stop, baseUrl } from "../../../testkit/evcc";
 import { openMoreMenu } from "./utils";
 
 test.use({ baseURL: baseUrl() });
@@ -10,9 +10,9 @@ test.beforeAll(async () => {
     "--custom-brand",
     "G1GA HEMS",
     "--custom-logo-light",
-    "tests/custom-logo-light.svg",
+    "ui/classic/tests/custom-logo-light.svg",
     "--custom-logo-dark",
-    "tests/custom-logo-dark.svg",
+    "ui/classic/tests/custom-logo-dark.svg",
     "--custom-website",
     "https://example.com/hems",
     "--custom-email",

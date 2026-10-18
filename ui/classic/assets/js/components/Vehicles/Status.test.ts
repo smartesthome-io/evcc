@@ -2,7 +2,7 @@ import { mount, config } from "@vue/test-utils";
 import { describe, expect, test } from "vite-plus/test";
 import Status from "./Status.vue";
 import { CURRENCY } from "@/types/evcc";
-import en from "../../../../i18n/en.json";
+import en from "../../../../../../i18n/en.json";
 
 // minimal $t/$te that walk en.json so tests assert on real English text
 const lookup = (key: string): string | undefined => {

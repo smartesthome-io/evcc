@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from "@playwright/test";
-import { start, stop, restart, baseUrl } from "./evcc";
+import { start, stop, restart, baseUrl } from "../../../testkit/evcc";
 
 test.use({ baseURL: baseUrl() });
 

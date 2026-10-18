@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, restart, baseUrl } from "./evcc";
+import { start, stop, restart, baseUrl } from "../../../testkit/evcc";
 import { expectModalVisible, expectModalHidden } from "./utils";
 
 test.use({ baseURL: baseUrl() });
 
 const flags = ["--disable-auth", "--template-type", "meter", "--template"];
-const v1Flags = [...flags, "tests/config-multi-product-v1.tpl.yaml"];
-const v2Flags = [...flags, "tests/config-multi-product-v2.tpl.yaml"];
+const v1Flags = [...flags, "ui/classic/tests/config-multi-product-v1.tpl.yaml"];
+const v2Flags = [...flags, "ui/classic/tests/config-multi-product-v2.tpl.yaml"];
 
 test.beforeEach(async () => {
   await start(undefined, undefined, v1Flags);

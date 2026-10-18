@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
-import { start, stop, baseUrl } from "./evcc";
+import { start, stop, baseUrl } from "../../../testkit/evcc";
 import { expectModalVisible, expectModalHidden, openMoreMenu, dragElement } from "./utils";
 
 const CONFIG_LOADPOINT_SORT = "loadpoint-sort.evcc.yaml";

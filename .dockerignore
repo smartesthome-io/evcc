@@ -22,7 +22,7 @@ Dockerfile
 evcc
 evcc.exe
 builddir
-dist
+**/dist
 node_modules
 playwright-report
 release

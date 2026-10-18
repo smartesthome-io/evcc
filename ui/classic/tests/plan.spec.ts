@@ -1,5 +1,5 @@
 import { test, expect, devices, type Page, type Locator } from "@playwright/test";
-import { start, stop, baseUrl, restart } from "./evcc";
+import { start, stop, baseUrl, restart } from "../../../testkit/evcc";
 
 test.use({ baseURL: baseUrl() });
 test.describe.configure({ mode: "parallel" });

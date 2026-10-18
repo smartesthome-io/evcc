@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, baseUrl, restart } from "./evcc";
+import { start, stop, baseUrl, restart } from "../../../testkit/evcc";
 import {
   openMoreMenu,
   expectModalVisible,

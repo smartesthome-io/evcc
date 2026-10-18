@@ -3,12 +3,12 @@ import { createReadStream } from "node:fs";
 
 // serve test logos so the custom branding stories can render them
 const customLogos = {
-  "/custom-logo-light": "tests/custom-logo-light.svg",
-  "/custom-logo-dark": "tests/custom-logo-dark.svg",
+  "/custom-logo-light": "ui/classic/tests/custom-logo-light.svg",
+  "/custom-logo-dark": "ui/classic/tests/custom-logo-dark.svg",
 };
 
 export default {
-  stories: ["../assets/js/**/*.stories.@(js|ts)"],
+  stories: ["../ui/classic/assets/js/**/*.stories.@(js|ts)"],
   addons: [],
   framework: {
     name: "@storybook/vue3-vite",

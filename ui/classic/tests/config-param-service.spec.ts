@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { start, stop, baseUrl } from "./evcc";
+import { start, stop, baseUrl } from "../../../testkit/evcc";
 import { expectModalVisible, expectDatalistOptions } from "./utils";
 
 test.use({ baseURL: baseUrl() });
@@ -10,7 +10,7 @@ const templateFlags = [
   "--template-type",
   "meter",
   "--template",
-  "tests/config-param-service-demo.tpl.yaml",
+  "ui/classic/tests/config-param-service-demo.tpl.yaml",
 ];
 
 test.beforeAll(async () => {

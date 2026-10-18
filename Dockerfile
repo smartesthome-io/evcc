@@ -14,7 +14,7 @@ COPY Makefile .
 COPY *.js ./
 COPY *.ts *.mts ./
 COPY .browserslistrc .
-COPY assets assets
+COPY ui/classic ui/classic
 COPY i18n i18n
 
 RUN make ui
@@ -54,7 +54,7 @@ RUN make patch-asn1
 RUN --mount=type=cache,target=${GOMODCACHE} --mount=type=cache,target=${GOCACHE} make assets
 
 # copy ui
-COPY --from=node /build/dist /build/dist
+COPY --from=node /build/ui/classic/dist /build/ui/classic/dist
 
 # build
 ARG TARGETOS

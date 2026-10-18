@@ -42,7 +42,7 @@ default:: ui build
 all:: clean install install-ui ui assets openapi lint test-ui lint-ui test build
 
 clean::
-	rm -rf dist/
+	rm -rf ui/classic/dist/
 
 install::
 	go install tool

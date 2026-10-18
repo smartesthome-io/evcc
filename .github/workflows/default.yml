@@ -62,7 +62,7 @@ jobs:
           node-version-file: ".node-version"
           cache: true
 
-      - run: mkdir dist && touch dist/empty
+      - run: mkdir -p ui/classic/dist && touch ui/classic/dist/empty
 
       - name: Build
         run: make build
@@ -85,7 +85,7 @@ jobs:
         id: go
 
       - name: Test
-        run: mkdir dist && touch dist/empty && make test
+        run: mkdir -p ui/classic/dist && touch ui/classic/dist/empty && make test
 
   lint:
     name: Lint
@@ -104,7 +104,7 @@ jobs:
           go-version-file: go.mod
         id: go
 
-      - run: mkdir dist && touch dist/empty
+      - run: mkdir -p ui/classic/dist && touch ui/classic/dist/empty
 
       - name: Lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
@@ -175,7 +175,7 @@ jobs:
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         id: cache-dist
         with:
-          path: dist
+          path: ui/classic/dist
           key: ${{ runner.os }}-${{ github.sha }}-dist
 
       - name: Porcelain
@@ -316,7 +316,7 @@ jobs:
       # on a hit setup-go does not save again, so building would populate nothing
       - name: Build
         if: steps.go.outputs.cache-hit != 'true'
-        run: mkdir dist && touch dist/empty && make build
+        run: mkdir -p ui/classic/dist && touch ui/classic/dist/empty && make build
 
   warm-fork-cache-ui:
     name: Warm fork cache (UI)

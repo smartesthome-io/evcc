@@ -1,10 +1,10 @@
 import { type Preview, setup } from "@storybook/vue3";
 import "bootstrap/dist/css/bootstrap.min.css";
 import smoothscroll from "smoothscroll-polyfill";
-import setupI18n from "../assets/js/i18n";
-import tooltip from "../assets/js/directives/tooltip";
-import "../assets/css/app.css";
-import { watchThemeChanges } from "../assets/js/theme";
+import setupI18n from "../ui/classic/assets/js/i18n";
+import tooltip from "../ui/classic/assets/js/directives/tooltip";
+import "../ui/classic/assets/css/app.css";
+import { watchThemeChanges } from "../ui/classic/assets/js/theme";
 
 smoothscroll.polyfill();
 watchThemeChanges();

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, baseUrl } from "./evcc";
+import { start, stop, baseUrl } from "../../../testkit/evcc";
 import { openMoreMenu, enableAppContext, expectAppEvent } from "./utils";
 
 test.use({ baseURL: baseUrl() });

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, baseUrl, restart, eebusPort } from "./evcc";
+import { start, stop, baseUrl, restart, eebusPort } from "../../../testkit/evcc";
 import { expectModalHidden, expectModalVisible } from "./utils";
 
 test.use({ baseURL: baseUrl() });

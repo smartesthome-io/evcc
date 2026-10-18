@@ -1,10 +1,14 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, baseUrl } from "./evcc";
+import { start, stop, baseUrl } from "../../../testkit/evcc";
 
 test.use({ baseURL: baseUrl() });
 
 test.beforeAll(async () => {
-  await start("basics.evcc.yaml", null, ["--disable-auth", "--custom-css", "tests/custom-css.css"]);
+  await start("basics.evcc.yaml", null, [
+    "--disable-auth",
+    "--custom-css",
+    "ui/classic/tests/custom-css.css",
+  ]);
 });
 
 test.afterAll(async () => {

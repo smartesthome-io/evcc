@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { start, stop, baseUrl } from "./evcc";
+import { start, stop, baseUrl } from "../../../testkit/evcc";
 import { expectModalVisible, expectModalHidden, editorClear, editorPaste } from "./utils";
 
 test.use({ baseURL: baseUrl() });

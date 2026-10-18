@@ -15,6 +15,11 @@ const LOG_ENABLED = !IS_CI;
 // sometimes evcc startup fails due to infra issues in runner ususally fixed by retry. allowing some fails to avoid github annotations clutter
 let allowedStartupFails = IS_CI ? 2 : 0;
 
+// fixtures resolve against the running project's testDir, relative to the repo root where evcc starts
+function testDir() {
+  return path.relative(process.cwd(), test.info().project.testDir);
+}
+
 function workerPort() {
   const index = Number(process.env["TEST_WORKER_INDEX"] ?? 0);
   return 11000 + index;
@@ -102,12 +107,14 @@ async function _restoreDatabase(sqlDumps: string) {
   const dumps = Array.isArray(sqlDumps) ? sqlDumps : [sqlDumps];
   for (const dump of dumps) {
     log("loading database", dbPath(), dump);
-    execSync(`sqlite3 ${dbPath()} < tests/${dump}`);
+    execSync(`sqlite3 ${dbPath()} < ${testDir()}/${dump}`);
   }
 }
 
 async function _start(config?: string, flags: string | string[] = []) {
-  const configArgs = config ? ["--config", config.includes("/") ? config : `tests/${config}`] : [];
+  const configArgs = config
+    ? ["--config", config.includes("/") ? config : `${testDir()}/${config}`]
+    : [];
   const port = workerPort();
   const ocpp = ocppPort();
   const eebus = eebusPort();

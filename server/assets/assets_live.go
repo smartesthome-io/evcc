@@ -7,6 +7,6 @@ import (
 )
 
 func init() {
-	Web = os.DirFS("dist")
+	Web = os.DirFS("ui/classic/dist")
 	I18n = os.DirFS("i18n")
 }

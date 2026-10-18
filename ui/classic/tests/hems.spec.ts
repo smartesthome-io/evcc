@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import axios from "axios";
-import { start, stop, restart, baseUrl } from "./evcc";
+import { start, stop, restart, baseUrl } from "../../../testkit/evcc";
 import {
   expectModalVisible,
   expectModalHidden,

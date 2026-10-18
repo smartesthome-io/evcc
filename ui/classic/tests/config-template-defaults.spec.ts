@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, restart, baseUrl } from "./evcc";
+import { start, stop, restart, baseUrl } from "../../../testkit/evcc";
 import { expectModalHidden, expectModalVisible } from "./utils";
 
 const templateFlags = [
@@ -7,7 +7,7 @@ const templateFlags = [
   "--template-type",
   "meter",
   "--template",
-  "tests/config-template-defaults-demo.tpl.yaml",
+  "ui/classic/tests/config-template-defaults-demo.tpl.yaml",
 ];
 
 test.use({ baseURL: baseUrl() });

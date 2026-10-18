@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, restart, baseUrl } from "./evcc";
+import { start, stop, restart, baseUrl } from "../../../testkit/evcc";
 import { expectModalVisible, expectModalHidden } from "./utils";
 import { simulatorUrl, startSimulator, stopSimulator } from "./simulator";
 
@@ -12,7 +12,7 @@ const templateFlags = [
   "--template-type",
   "meter",
   "--template",
-  "tests/config-provider-auth-oauth-demo.tpl.yaml",
+  "ui/classic/tests/config-provider-auth-oauth-demo.tpl.yaml",
 ];
 
 // Build complete redirect URI with callback path

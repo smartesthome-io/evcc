@@ -1,6 +1,6 @@
 import { nextTick } from "vue";
 import { createI18n, type VueI18nInstance } from "vue-i18n";
-import en from "../../i18n/en.json";
+import en from "../../../../i18n/en.json";
 import { i18n as i18nApi } from "./api";
 import settings from "./settings";
 

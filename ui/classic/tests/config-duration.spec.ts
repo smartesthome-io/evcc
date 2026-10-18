@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Locator } from "@playwright/test";
-import { start, stop, restart, baseUrl } from "./evcc";
+import { start, stop, restart, baseUrl } from "../../../testkit/evcc";
 import { expectModalVisible, expectModalHidden } from "./utils";
 
 const templateFlags = [
@@ -7,7 +7,7 @@ const templateFlags = [
   "--template-type",
   "meter",
   "--template",
-  "tests/config-duration-demo.tpl.yaml",
+  "ui/classic/tests/config-duration-demo.tpl.yaml",
 ];
 
 test.use({ baseURL: baseUrl() });

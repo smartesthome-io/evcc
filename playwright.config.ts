@@ -4,8 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
-  testDir: "./tests",
-  globalSetup: "./tests/global-setup.ts",
+  globalSetup: "./ui/classic/tests/global-setup.ts",
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 4 : 0,
   timeout: 60000, // 60s
@@ -21,6 +20,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testDir: "./ui/classic/tests",
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1400, height: 1400 },

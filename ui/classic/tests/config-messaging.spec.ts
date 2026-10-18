@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, restart, baseUrl } from "./evcc";
+import { start, stop, restart, baseUrl } from "../../../testkit/evcc";
 import { expectModalHidden, expectModalVisible, editorClear, editorPaste } from "./utils";
 
 const CONFIG_WITH_MESSAGING = "config-messaging.evcc.yaml";

@@ -32,7 +32,7 @@ jobs:
           cache: true
 
       - name: Generate CLI docs
-        run: mkdir dist && touch dist/empty && go run main.go gendoc ./cli-docs
+        run: mkdir -p ui/classic/dist && touch ui/classic/dist/empty && go run main.go gendoc ./cli-docs
 
       - name: Format
         run: vp fmt "./cli-docs/**/*.md"

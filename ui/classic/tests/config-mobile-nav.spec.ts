@@ -1,5 +1,5 @@
 import { test, expect, devices } from "@playwright/test";
-import { start, stop, restart, baseUrl } from "./evcc";
+import { start, stop, restart, baseUrl } from "../../../testkit/evcc";
 import { expectModalHidden, expectModalVisible, newLoadpoint, addDemoCharger } from "./utils";
 
 test.use({ baseURL: baseUrl(), viewport: devices["iPhone 12 Mini"].viewport });

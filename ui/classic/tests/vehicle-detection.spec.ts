@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, baseUrl } from "./evcc";
+import { start, stop, baseUrl } from "../../../testkit/evcc";
 import {
   startSimulator,
   stopSimulator,
@@ -18,7 +18,7 @@ test.afterAll(async () => {
 });
 
 test.beforeEach(async () => {
-  await start(simulatorConfig("./tests/vehicle-detection.evcc.yaml"));
+  await start(simulatorConfig("./ui/classic/tests/vehicle-detection.evcc.yaml"));
 });
 
 test.afterEach(async () => {

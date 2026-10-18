@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, restart, baseUrl } from "./evcc";
+import { start, stop, restart, baseUrl } from "../../../testkit/evcc";
 import { startSimulator, stopSimulator, simulatorHost } from "./simulator";
 import { expectModalVisible, expectModalHidden } from "./utils";
 

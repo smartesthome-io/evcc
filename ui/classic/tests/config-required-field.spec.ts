@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { start, stop, baseUrl } from "./evcc";
+import { start, stop, baseUrl } from "../../../testkit/evcc";
 import { expectModalVisible } from "./utils";
 
 test.use({ baseURL: baseUrl() });
@@ -9,7 +9,7 @@ const templateFlags = [
   "--template-type",
   "meter",
   "--template",
-  "tests/config-required-field.tpl.yaml",
+  "ui/classic/tests/config-required-field.tpl.yaml",
 ];
 
 test.beforeEach(async () => {

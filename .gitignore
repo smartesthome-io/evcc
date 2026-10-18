@@ -19,13 +19,13 @@ testdata/**/*
 !templates/**/*.yaml
 !templates/**/*-schema.json
 !util/templates/**/*.yaml
-!assets/js/**/*.yaml
+!ui/classic/assets/js/**/*.yaml
 !package*.json
 !evcc.dist.yaml
 !server/openapi.state.yaml
 !.coderabbit.yaml
-!tests/**/*.evcc.yaml
-!tests/**/*.tpl.yaml
+!ui/classic/tests/**/*.evcc.yaml
+!ui/classic/tests/**/*.tpl.yaml
 !tsconfig.json
 /templates/docs
 evcc
