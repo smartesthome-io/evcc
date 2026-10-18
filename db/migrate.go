@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/libtnb/sqlite"
@@ -42,10 +43,8 @@ func HasModelTables(conn *gorm.DB) ([]string, error) {
 
 // DropModelTables drops the tables of the registered models, referencing tables first
 func DropModelTables(conn *gorm.DB) error {
-	all := Models()
-
-	for i := len(all) - 1; i >= 0; i-- {
-		if err := conn.Migrator().DropTable(all[i]); err != nil {
+	for _, m := range slices.Backward(Models()) {
+		if err := conn.Migrator().DropTable(m); err != nil {
 			return err
 		}
 	}

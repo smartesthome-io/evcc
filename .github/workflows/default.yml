@@ -87,6 +87,43 @@ jobs:
       - name: Test
         run: mkdir dist && touch dist/empty && make test
 
+  test-postgres:
+    name: Test (PostgreSQL)
+    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-24.04-arm' || 'depot-ubuntu-24.04-arm' }}
+
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: evcc
+          POSTGRES_DB: evcc
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      EVCC_TEST_DB: postgres://postgres:evcc@localhost:5432/evcc?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+        id: go
+
+      - name: Test
+        run: mkdir dist && touch dist/empty && make test-postgres
+
   lint:
     name: Lint
     runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-24.04-arm' || 'depot-ubuntu-24.04-arm' }}

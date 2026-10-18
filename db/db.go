@@ -183,14 +183,13 @@ func Close() error {
 // IsReadonly reports whether err indicates a database that is not
 // writable by the current user. The code mask covers extended result codes.
 func IsReadonly(err error) bool {
-	var serr *sqlite3.Error
-	if errors.As(err, &serr) {
+	if serr, ok := errors.AsType[*sqlite3.Error](err); ok {
 		return serr.Code()&0xff == sqlite3lib.SQLITE_READONLY
 	}
 
 	// read_only_sql_transaction
-	var perr *pgconn.PgError
-	return errors.As(err, &perr) && perr.Code == "25006"
+	perr, ok := errors.AsType[*pgconn.PgError](err)
+	return ok && perr.Code == "25006"
 }
 
 type backuper interface {
