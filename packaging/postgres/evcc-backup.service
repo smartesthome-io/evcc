@@ -11,6 +11,7 @@ UMask=0077
 StateDirectory=evcc-backup
 Environment=BACKUP_DIR=/var/lib/evcc-backup
 Environment=KEEP=14
-# database settings of evcc, alternatively use /etc/evcc.yaml
-Environment=EVCC_DATABASE_DSN=postgres://evcc:password@localhost:5432/evcc
+# contains EVCC_DATABASE_DSN=postgres://user:password@host:5432/evcc, readable for root only (mode 0600).
+# Alternatively the database settings of /etc/evcc.yaml are used.
+EnvironmentFile=-/etc/evcc-backup.env
 ExecStart=/usr/local/bin/evcc-backup.sh

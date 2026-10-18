@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/evcc-io/evcc/db"
@@ -25,6 +27,9 @@ readable for the current user only. An existing file is never overwritten.`,
 func init() {
 	dbCmd.AddCommand(dbBackupCmd)
 
+	// replaces the interrupt handling that exits at once
+	dbBackupCmd.PersistentPreRun = func(*cobra.Command, []string) {}
+
 	dbBackupCmd.Flags().String(flagTo, "", "Backup file (default evcc-backup-<timestamp>.dump or .db)")
 }
 
@@ -39,7 +44,11 @@ func runDBBackup(cmd *cobra.Command, args []string) {
 		to = defaultBackupName(typ, time.Now())
 	}
 
-	if err := backupDatabase(context.Background(), typ, dsn, to); err != nil {
+	// interrupting must not kill the process, it would leave a partial file
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := backupDatabase(ctx, typ, dsn, to); err != nil {
 		log.FATAL.Fatal(err)
 	}
 
@@ -74,7 +83,7 @@ func backupPostgres(ctx context.Context, dsn, to string) error {
 
 	f, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
-		return err
+		return fmt.Errorf("create backup file: %w", err)
 	}
 
 	err = toolRunner(ctx, "pg_dump", []string{"--format=custom", "--no-password"}, env, nil, f)
@@ -100,8 +109,13 @@ func backupSQLite(ctx context.Context, dsn, to string) error {
 		return fmt.Errorf("database: %w", err)
 	}
 
-	if _, err := os.Stat(to); err == nil {
-		return fmt.Errorf("%s already exists", to)
+	// reserve the file with restrictive permissions before the database is copied into it
+	f, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return fmt.Errorf("create backup file: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return err
 	}
 
 	// opening does not migrate the database
@@ -117,5 +131,5 @@ func backupSQLite(ctx context.Context, dsn, to string) error {
 		return err
 	}
 
-	return os.Chmod(to, 0o600)
+	return nil
 }

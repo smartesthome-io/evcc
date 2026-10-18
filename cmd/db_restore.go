@@ -6,10 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/evcc-io/evcc/db"
 	"github.com/spf13/cobra"
+	"gorm.io/gorm"
 )
 
 const flagYes = "yes"
@@ -28,6 +31,9 @@ other evcc instances are connected to the database, unless --force is given.`,
 
 func init() {
 	dbCmd.AddCommand(dbRestoreCmd)
+
+	// replaces the interrupt handling that exits at once
+	dbRestoreCmd.PersistentPreRun = func(*cobra.Command, []string) {}
 
 	dbRestoreCmd.Flags().String(flagFrom, "", "Backup file")
 	dbRestoreCmd.Flags().Bool(flagYes, false, "Do not ask for confirmation")
@@ -51,7 +57,11 @@ func runDBRestore(cmd *cobra.Command, args []string) {
 	opts.yes, _ = cmd.Flags().GetBool(flagYes)
 	opts.force, _ = cmd.Flags().GetBool(flagForce)
 
-	if err := restoreDatabaseFile(context.Background(), typ, dsn, from, opts); err != nil {
+	// interrupting must not kill the process, the restore leaves TimescaleDB in restore mode otherwise
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := restoreDatabaseFile(ctx, typ, dsn, from, opts); err != nil {
 		log.FATAL.Fatal(err)
 	}
 
@@ -75,7 +85,7 @@ func restoreDatabaseFile(ctx context.Context, typ, dsn, from string, opts restor
 }
 
 func restoreSQLite(ctx context.Context, dsn, from string, opts restoreOptions) error {
-	if err := confirm("This replaces all data in the database with the backup. evcc must not be running.", opts.yes, opts.in); err != nil {
+	if err := confirm("This replaces all data in database "+dsn+" with the backup. evcc must not be running.", opts.yes, opts.in); err != nil {
 		return err
 	}
 
@@ -127,20 +137,21 @@ func restorePostgres(ctx context.Context, dsn, from string, opts restoreOptions)
 		return errors.New("the backup was taken from a TimescaleDB database, enable the timescaledb extension in the target database first")
 	}
 
-	var others int64
-	if err := conn.Raw(`SELECT count(*) FROM pg_stat_activity
-		WHERE datname = current_database() AND application_name = ? AND pid <> pg_backend_pid()`, db.ApplicationName).Scan(&others).Error; err != nil {
-		return err
-	}
-	if others > 0 && !opts.force {
-		return fmt.Errorf("%d evcc connection(s) are active on this database, stop evcc first or use --force", others)
-	}
-
-	if err := confirm("This replaces all data in the database with the backup.", opts.yes, opts.in); err != nil {
+	if err := checkNoInstances(conn, opts.force); err != nil {
 		return err
 	}
 
-	dropped := false
+	question := fmt.Sprintf("This replaces all data in database %s on %s with the backup.", database, envValue(env, "PGHOST"))
+	if err := confirm(question, opts.yes, opts.in); err != nil {
+		return err
+	}
+
+	// an instance may have started while waiting for the answer
+	if err := checkNoInstances(conn, opts.force); err != nil {
+		return err
+	}
+
+	dropped, restoring := false, false
 
 	if timescale {
 		// pg_restore cannot drop hypertables it does not know the chunks of, e.g. when restoring a plain backup.
@@ -153,8 +164,14 @@ func restorePostgres(ctx context.Context, dsn, from string, opts restoreOptions)
 		if err := db.SetTimescaleRestoring(conn, true); err != nil {
 			return fmt.Errorf("restore failed after the evcc tables were dropped, restore again from the backup file: %w", err)
 		}
-		// leave the database usable even if the restore fails
-		defer func() { _ = db.SetTimescaleRestoring(conn, false) }()
+
+		// leave the database usable even if the restore fails or is interrupted
+		restoring = true
+		defer func() {
+			if restoring {
+				_ = db.SetTimescaleRestoring(conn, false)
+			}
+		}()
 	}
 
 	f, err := os.Open(from)
@@ -172,11 +189,36 @@ func restorePostgres(ctx context.Context, dsn, from string, opts restoreOptions)
 		return err
 	}
 
-	if timescale {
+	if restoring {
+		restoring = false
 		return db.SetTimescaleRestoring(conn, false)
 	}
 
 	return nil
+}
+
+// checkNoInstances refuses to restore while other evcc instances are connected to the database
+func checkNoInstances(conn *gorm.DB, force bool) error {
+	var others int64
+	if err := conn.Raw(`SELECT count(*) FROM pg_stat_activity
+		WHERE datname = current_database() AND application_name = ? AND pid <> pg_backend_pid()`, db.ApplicationName).Scan(&others).Error; err != nil {
+		return err
+	}
+
+	if others > 0 && !force {
+		return fmt.Errorf("%d evcc connection(s) are active on this database, stop evcc first or use --force", others)
+	}
+
+	return nil
+}
+
+func envValue(env []string, key string) string {
+	for _, e := range env {
+		if v, ok := strings.CutPrefix(e, key+"="); ok {
+			return v
+		}
+	}
+	return ""
 }
 
 // archiveNeedsTimescale checks that the file is a valid archive and whether it contains the timescaledb extension

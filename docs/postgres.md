@@ -65,13 +65,18 @@ Stop evcc first, then:
 evcc db restore --from /var/backups/evcc/evcc.dump
 ```
 
-All data in the database is replaced. The restore is refused while other evcc instances are connected to the
-database (`--force` overrides), and asks for confirmation unless `--yes` is given. It runs `pg_restore` in a
-single transaction, a failing restore leaves the database as it was. Afterwards start evcc.
+The tables of the backup replace the ones in the database. The command asks for confirmation unless `--yes` is
+given, and runs `pg_restore` in a single transaction: a failing restore leaves the database as it was.
+Afterwards start evcc.
+
+The restore is refused while other evcc instances are connected to the database (`--force` overrides). Such an
+instance is recognised by its connection name `evcc`. Instances started by an older evcc version or with their own
+`application_name` in the dsn are not detected, so always stop evcc first.
 
 On a database with the `timescaledb` extension, evcc drops its tables, prepares TimescaleDB with
 `timescaledb_pre_restore()` and finishes with `timescaledb_post_restore()`. Should the restore fail after the
-tables were dropped, run it again with the same file.
+tables were dropped, run it again with the same file. If the command was killed in between, the database stays
+in restore mode, run `SELECT timescaledb_post_restore();` in it and restore again.
 
 Restoring a backup between the variants:
 
@@ -93,7 +98,14 @@ systemctl daemon-reload
 systemctl enable --now evcc-backup.timer
 ```
 
-Adjust the database settings in the service file first.
+Put the database settings into `/etc/evcc-backup.env`, readable for root only, as the service reads them from there:
+
+```sh
+install -m 600 /dev/null /etc/evcc-backup.env
+echo 'EVCC_DATABASE_DSN=postgres://user:password@host:5432/evcc' > /etc/evcc-backup.env
+```
+
+Without that file the service uses the database settings of `/etc/evcc.yaml`.
 
 ## Docker
 

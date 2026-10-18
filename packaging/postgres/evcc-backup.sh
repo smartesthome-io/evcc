@@ -14,6 +14,6 @@ mkdir -p "$BACKUP_DIR"
 "$EVCC" db backup --to "$BACKUP_DIR/evcc-$(date +%Y%m%d-%H%M%S).dump"
 
 # delete all but the newest backups
-ls -1t "$BACKUP_DIR"/evcc-*.dump | tail -n "+$((KEEP + 1))" | while read -r old; do
+ls -1t "$BACKUP_DIR"/evcc-*.dump | tail -n "+$((KEEP + 1))" | while IFS= read -r old; do
 	rm -- "$old"
 done

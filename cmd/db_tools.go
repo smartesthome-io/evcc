@@ -36,13 +36,25 @@ func runTool(ctx context.Context, name string, args, env []string, stdin io.Read
 		if errors.Is(err, exec.ErrNotFound) {
 			return fmt.Errorf("%s not found, install the PostgreSQL client tools (the version must not be older than the server)", name)
 		}
-		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+		if msg := toolMessages(stderr.String()); msg != "" {
 			return fmt.Errorf("%s: %w: %s", name, err, msg)
 		}
 		return fmt.Errorf("%s: %w", name, err)
 	}
 
 	return nil
+}
+
+// toolMessages keeps the error lines of the PostgreSQL tools. Detail and command lines are dropped,
+// they can contain the data of the failing statement.
+func toolMessages(stderr string) string {
+	var lines []string
+	for line := range strings.SplitSeq(stderr, "\n") {
+		if strings.HasPrefix(line, "pg_dump:") || strings.HasPrefix(line, "pg_restore:") {
+			lines = append(lines, strings.TrimSpace(line))
+		}
+	}
+	return strings.Join(lines, "; ")
 }
 
 type limitedWriter struct {
@@ -66,9 +78,25 @@ func pgEnv(dsn string) ([]string, string, error) {
 		return nil, "", fmt.Errorf("invalid postgres dsn: %w", err)
 	}
 
+	settings := dsnSettings(dsn)
+	if settings["sslpassword"] != "" {
+		return nil, "", errors.New("sslpassword is not supported for backup and restore, use an unencrypted client key")
+	}
+
+	// libpq accepts several hosts, the fallbacks of the parsed config also contain tls variants of the same host
+	var hosts, ports []string
+	seen := make(map[string]bool)
+	for _, c := range append([]*pgconn.FallbackConfig{{Host: cfg.Host, Port: cfg.Port}}, cfg.Fallbacks...) {
+		port := strconv.Itoa(int(c.Port))
+		if key := c.Host + ":" + port; !seen[key] {
+			seen[key] = true
+			hosts, ports = append(hosts, c.Host), append(ports, port)
+		}
+	}
+
 	env := []string{
-		"PGHOST=" + cfg.Host,
-		"PGPORT=" + strconv.Itoa(int(cfg.Port)),
+		"PGHOST=" + strings.Join(hosts, ","),
+		"PGPORT=" + strings.Join(ports, ","),
 		"PGUSER=" + cfg.User,
 		"PGDATABASE=" + cfg.Database,
 	}
@@ -77,12 +105,17 @@ func pgEnv(dsn string) ([]string, string, error) {
 		env = append(env, "PGPASSWORD="+cfg.Password)
 	}
 
-	settings := dsnSettings(dsn)
 	for key, variable := range map[string]string{
-		"sslmode":     "PGSSLMODE",
-		"sslrootcert": "PGSSLROOTCERT",
-		"sslcert":     "PGSSLCERT",
-		"sslkey":      "PGSSLKEY",
+		"sslmode":              "PGSSLMODE",
+		"sslrootcert":          "PGSSLROOTCERT",
+		"sslcert":              "PGSSLCERT",
+		"sslkey":               "PGSSLKEY",
+		"sslcrl":               "PGSSLCRL",
+		"connect_timeout":      "PGCONNECT_TIMEOUT",
+		"target_session_attrs": "PGTARGETSESSIONATTRS",
+		"krbsrvname":           "PGKRBSRVNAME",
+		"service":              "PGSERVICE",
+		"passfile":             "PGPASSFILE",
 	} {
 		if v := settings[key]; v != "" {
 			env = append(env, variable+"="+v)
@@ -103,10 +136,34 @@ func dsnSettings(dsn string) map[string]string {
 		return res
 	}
 
-	for field := range strings.FieldsSeq(dsn) {
-		if k, v, ok := strings.Cut(field, "="); ok {
-			res[k] = strings.Trim(v, "'")
+	// key value form: key = value, values may be single quoted with backslash escapes
+	rest := strings.TrimSpace(dsn)
+	for rest != "" {
+		key, after, ok := strings.Cut(rest, "=")
+		if !ok {
+			break
 		}
+
+		key = strings.TrimSpace(key)
+		after = strings.TrimLeft(after, " \t")
+
+		var value string
+		if strings.HasPrefix(after, "'") {
+			var b strings.Builder
+			i := 1
+			for ; i < len(after) && after[i] != '\''; i++ {
+				if after[i] == '\\' && i+1 < len(after) {
+					i++
+				}
+				b.WriteByte(after[i])
+			}
+			value, rest = b.String(), strings.TrimSpace(after[min(i+1, len(after)):])
+		} else {
+			value, rest, _ = strings.Cut(after, " ")
+			rest = strings.TrimSpace(rest)
+		}
+
+		res[key] = value
 	}
 
 	return res

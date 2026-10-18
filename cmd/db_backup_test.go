@@ -3,11 +3,13 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -51,9 +53,15 @@ func useClientTools(t *testing.T) {
 		return
 	}
 
+	// CI must run these tests
+	skip := t.Skip
+	if os.Getenv("CI") != "" {
+		skip = t.Fatal
+	}
+
 	out, err := exec.Command("pg_dump", "--version").Output()
 	if err != nil {
-		t.Skip("pg_dump not installed")
+		skip("pg_dump not installed")
 	}
 
 	// pg_dump refuses servers newer than itself
@@ -67,7 +75,7 @@ func useClientTools(t *testing.T) {
 	var clientMajor int
 	_, _ = fmt.Sscanf(strings.TrimPrefix(strings.TrimSpace(string(out)), "pg_dump (PostgreSQL) "), "%d", &clientMajor)
 	if clientMajor < serverMajor {
-		t.Skipf("pg_dump %d is older than the server %d", clientMajor, serverMajor)
+		skip(fmt.Sprintf("pg_dump %d is older than the server %d", clientMajor, serverMajor))
 	}
 }
 
@@ -274,7 +282,7 @@ func TestBackupToolErrors(t *testing.T) {
 	orig := toolRunner
 	t.Cleanup(func() { toolRunner = orig })
 	toolRunner = func(_ context.Context, name string, _, _ []string, _ io.Reader, _ io.Writer) error {
-		return runTool(t.Context(), "sh", []string{"-c", "echo connection refused >&2; exit 1"}, nil, nil, nil)
+		return runTool(t.Context(), "sh", []string{"-c", "echo 'pg_dump: error: connection refused' >&2; exit 1"}, nil, nil, nil)
 	}
 
 	file := filepath.Join(t.TempDir(), "evcc.dump")
@@ -353,4 +361,82 @@ func TestDefaultBackupName(t *testing.T) {
 	now := time.Date(2026, 10, 19, 13, 5, 9, 0, time.UTC)
 	assert.Equal(t, "evcc-backup-20261019-130509.dump", defaultBackupName(db.Postgres, now))
 	assert.Equal(t, "evcc-backup-20261019-130509.db", defaultBackupName(db.SQLite, now))
+}
+
+func TestToolErrorsOmitStatementData(t *testing.T) {
+	script := `echo 'pg_restore: error: could not execute query: ERROR:  duplicate key value violates unique constraint "settings_pkey"' >&2
+echo 'DETAIL:  Key (key)=(token) already exists.' >&2
+echo 'Command was: COPY public.settings (key, value) FROM stdin;' >&2
+echo 'token	super-secret-token' >&2
+exit 1`
+
+	err := runTool(t.Context(), "sh", []string{"-c", script}, nil, nil, nil)
+	require.Error(t, err)
+
+	assert.Contains(t, err.Error(), "duplicate key value violates unique constraint")
+	assert.NotContains(t, err.Error(), "super-secret-token")
+	assert.NotContains(t, err.Error(), "Key (key)")
+}
+
+func TestPgEnvMultipleHostsAndOptions(t *testing.T) {
+	env, _, err := pgEnv("postgres://u:p@a:5432,b:5433/db?sslmode=disable&connect_timeout=5&target_session_attrs=read-write")
+	require.NoError(t, err)
+
+	assert.Contains(t, env, "PGHOST=a,b")
+	assert.Contains(t, env, "PGPORT=5432,5433")
+	assert.Contains(t, env, "PGCONNECT_TIMEOUT=5")
+	assert.Contains(t, env, "PGTARGETSESSIONATTRS=read-write")
+
+	_, _, err = pgEnv("postgres://u:p@h/db?sslmode=disable&sslpassword=secret")
+	require.ErrorContains(t, err, "sslpassword")
+	assert.NotContains(t, err.Error(), "secret")
+}
+
+func TestDSNSettingsQuoting(t *testing.T) {
+	got := dsnSettings(`host=h user = evcc password='it\'s a pw' sslrootcert='/path with space/ca.pem' dbname=db`)
+
+	assert.Equal(t, "h", got["host"])
+	assert.Equal(t, "evcc", got["user"])
+	assert.Equal(t, "/path with space/ca.pem", got["sslrootcert"])
+	assert.Equal(t, "db", got["dbname"])
+	assert.Equal(t, "it's a pw", got["password"])
+}
+
+// a restore that fails after the tables were dropped keeps the database usable
+func TestRestoreTimescaleFailureLeavesRestoreMode(t *testing.T) {
+	dbtest.RequireTimescale(t)
+	useClientTools(t)
+
+	srcDSN := dbtest.NewDatabase(t, "timescaledb")
+	tgtDSN := dbtest.NewDatabase(t, "timescaledb")
+
+	seedPostgres(t, srcDSN, 3)
+	file := filepath.Join(t.TempDir(), "evcc.dump")
+	require.NoError(t, backupDatabase(t.Context(), db.Postgres, srcDSN, file))
+	closeDB(t, db.Instance)
+
+	real := toolRunner
+	t.Cleanup(func() { toolRunner = real })
+	toolRunner = func(ctx context.Context, name string, args, env []string, stdin io.Reader, stdout io.Writer) error {
+		if slices.Contains(args, "--single-transaction") {
+			return errors.New("restore broke")
+		}
+		return real(ctx, name, args, env, stdin, stdout)
+	}
+
+	err := restoreDatabaseFile(t.Context(), db.Postgres, tgtDSN, file, restoreOptions{yes: true})
+	require.ErrorContains(t, err, "restore again from the backup file")
+
+	conn, err := db.New(db.Postgres, tgtDSN)
+	require.NoError(t, err)
+	t.Cleanup(func() { closeDB(t, conn) })
+
+	var restoring string
+	require.NoError(t, conn.Raw("SHOW timescaledb.restoring").Scan(&restoring).Error)
+	assert.Equal(t, "off", restoring, "restore mode is left")
+
+	// the next attempt succeeds, the connection above is an evcc instance for the guard
+	toolRunner = real
+	require.NoError(t, restoreDatabaseFile(t.Context(), db.Postgres, tgtDSN, file, restoreOptions{yes: true, force: true}))
+	assert.EqualValues(t, 3, count(t, conn, "sessions"))
 }
