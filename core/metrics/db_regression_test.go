@@ -229,3 +229,24 @@ func TestQueryEnergyDST(t *testing.T) {
 		})
 	}
 }
+
+func TestQueryEnergySeriesOrderIsBytewise(t *testing.T) {
+	dbtest.NewInstance(t)
+	require.NoError(t, SetupSchema())
+
+	ts := time.Date(2026, 4, 15, 12, 0, 0, 0, time.UTC)
+	for i, title := range []string{"solar roof", "Zeta", "alpha"} {
+		e := entity{Id: 2 + i, Name: "e" + title, Group: Meter, Title: title}
+		require.NoError(t, db.Instance.Create(&e).Error)
+		require.NoError(t, persist(e, ts, 1, 0, nil, false))
+	}
+
+	res, err := QueryEnergy(ts.Add(-time.Hour), ts.Add(time.Hour), "hour", false)
+	require.NoError(t, err)
+
+	var titles []string
+	for _, s := range res {
+		titles = append(titles, s.Title)
+	}
+	require.Equal(t, []string{"Zeta", "alpha", "solar roof"}, titles)
+}

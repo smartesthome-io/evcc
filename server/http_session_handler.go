@@ -80,7 +80,7 @@ func sessionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := strings.Join(append([]string{"charged_kwh>=0.05"}, cond...), " AND ")
-	if txn := db.Instance.Where(query, args...).Order("created DESC").Find(&res); txn.Error != nil {
+	if txn := db.Instance.Where(query, args...).Order("created DESC, id").Find(&res); txn.Error != nil {
 		jsonError(w, http.StatusInternalServerError, txn.Error)
 		return
 	}

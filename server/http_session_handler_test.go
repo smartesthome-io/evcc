@@ -81,3 +81,26 @@ func TestSessionHandlerFilter(t *testing.T) {
 	assert.Equal(t, []float64{3.0}, energies("/?year=2026&month=12"))
 	assert.Empty(t, energies("/?year=2026&month=2"))
 }
+
+func TestSessionHandlerOrderIsStable(t *testing.T) {
+	dbtest.NewInstance(t)
+	require.NoError(t, db.Instance.AutoMigrate(new(session.Session)))
+
+	created := time.Date(2026, 5, 1, 12, 0, 0, 0, time.Local)
+	for _, loadpoint := range []string{"a", "b", "c"} {
+		require.NoError(t, db.Instance.Create(&session.Session{Loadpoint: loadpoint, Created: created, Finished: created.Add(time.Hour), ChargedEnergy: 1}).Error)
+	}
+
+	rec := httptest.NewRecorder()
+	sessionHandler(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var got session.Sessions
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+
+	var ids []uint
+	for _, s := range got {
+		ids = append(ids, s.ID)
+	}
+	assert.Equal(t, []uint{1, 2, 3}, ids, "same start time orders by id")
+}

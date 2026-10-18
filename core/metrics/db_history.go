@@ -136,7 +136,7 @@ func QueryEnergy(from, to time.Time, aggregate string, grouped bool, filter ...E
 		return nil, errors.New("invalid aggregate value")
 	}
 
-	titleExpr := `COALESCE(NULLIF(e.title,''), e.name)`
+	titleExpr := db.BinaryCollation(db.Instance, `COALESCE(NULLIF(e.title,''), e.name)`)
 	timeCol := db.LocalTime(db.Instance, "m.ts", format)
 
 	selectTitle := titleExpr + ` AS title`

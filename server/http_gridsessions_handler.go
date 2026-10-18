@@ -20,7 +20,7 @@ func gridSessionsHandler(w http.ResponseWriter, r *http.Request) {
 
 	var res smartgrid.GridSessions
 
-	if txn := db.Instance.Order("created DESC").Find(&res); txn.Error != nil {
+	if txn := db.Instance.Order("created DESC, id").Find(&res); txn.Error != nil {
 		jsonError(w, http.StatusInternalServerError, txn.Error)
 		return
 	}

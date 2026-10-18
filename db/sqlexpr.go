@@ -63,6 +63,14 @@ func checkZone(conn *gorm.DB) error {
 	return nil
 }
 
+// BinaryCollation returns an SQL expression comparing text byte-wise, the SQLite default
+func BinaryCollation(conn *gorm.DB, expr string) string {
+	if Dialect(conn) == Postgres {
+		return "(" + expr + ` COLLATE "C")`
+	}
+	return expr
+}
+
 // LocalTime returns an SQL expression formatting a unix seconds column in the local time zone.
 // The format uses the strftime directives %Y %m %d %H %M.
 func LocalTime(conn *gorm.DB, col, format string) string {
