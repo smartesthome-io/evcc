@@ -34,7 +34,7 @@ func SkipPostgres(t testing.TB) {
 func New(t testing.TB) *gorm.DB {
 	t.Helper()
 
-	conn, err := db.New(target(t))
+	conn, err := db.New(Target(t))
 	require.NoError(t, err)
 
 	if sqlDB, err := conn.DB(); err == nil {
@@ -48,7 +48,7 @@ func New(t testing.TB) *gorm.DB {
 func NewInstance(t testing.TB) {
 	t.Helper()
 
-	driver, dsn := target(t)
+	driver, dsn := Target(t)
 	require.NoError(t, db.NewInstance(driver, dsn))
 
 	// connections must be released to drop the schema; tests may still use an in-memory instance afterwards
@@ -61,8 +61,8 @@ func NewInstance(t testing.TB) {
 	}
 }
 
-// target returns driver and dsn of an empty database
-func target(t testing.TB) (string, string) {
+// Target returns driver and dsn of an empty database
+func Target(t testing.TB) (string, string) {
 	t.Helper()
 
 	dsn := os.Getenv(Env)

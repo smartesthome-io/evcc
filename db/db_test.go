@@ -49,6 +49,12 @@ func TestUnitNewDriver(t *testing.T) {
 			dsn:     "/var/lib/evcc/evcc.db",
 			wantErr: true,
 		},
+		{
+			name:    "Postgres invalid dsn",
+			driver:  "postgres",
+			dsn:     "postgres://user:secret@host:notaport/db",
+			wantErr: true,
+		},
 	}
 
 	for _, test := range tests {
@@ -210,4 +216,41 @@ func TestUnitIsReadonly(t *testing.T) {
 
 	assert.False(t, IsReadonly(errors.New("other")))
 	assert.False(t, IsReadonly(nil))
+}
+
+func TestUnitDriverFromDSN(t *testing.T) {
+	for dsn, want := range map[string]string{
+		"":                              "sqlite",
+		"~/.evcc/evcc.db":               "sqlite",
+		":memory:":                      "sqlite",
+		"postgres://u:p@localhost/evcc": "postgres",
+		"postgresql://u:p@localhost/db": "postgres",
+		"host=localhost user=evcc":      "sqlite",
+		"/var/lib/postgres://evcc.db":   "sqlite",
+	} {
+		assert.Equal(t, want, DriverFromDSN("sqlite", dsn), dsn)
+	}
+
+	assert.Equal(t, "postgres", DriverFromDSN("postgres", ""))
+}
+
+// TestUnitPostgresErrorsHidePassword verifies that connection problems do not leak credentials
+func TestUnitPostgresErrorsHidePassword(t *testing.T) {
+	for _, dsn := range []string{
+		"postgres://user:secret@host:notaport/db",
+		"postgres://user:secret@127.0.0.1:1/db?sslmode=disable&connect_timeout=1",
+	} {
+		conn, err := New("postgres", dsn)
+		require.Error(t, err)
+		assert.Nil(t, conn)
+		assert.NotContains(t, err.Error(), "secret", dsn)
+	}
+}
+
+func TestUnitDialect(t *testing.T) {
+	conn, err := New("sqlite", ":memory:")
+	require.NoError(t, err)
+
+	assert.Equal(t, SQLite, Dialect(conn))
+	assert.Empty(t, Dialect(nil))
 }

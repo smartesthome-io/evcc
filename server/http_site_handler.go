@@ -454,8 +454,15 @@ func logHandler(w http.ResponseWriter, r *http.Request) {
 	jsonWrite(w, log)
 }
 
+var errBackupUnsupported = errors.New("backup and restore are not available for postgres, use pg_dump")
+
 func getBackup() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if db.Dialect(db.Instance) == db.Postgres {
+			jsonError(w, http.StatusNotImplemented, errBackupUnsupported)
+			return
+		}
+
 		if err := settings.Persist(); err != nil {
 			http.Error(w, "Synching DB failed", http.StatusInternalServerError)
 			return
@@ -496,11 +503,19 @@ func getBackup() http.HandlerFunc {
 
 // createLocalDatabaseBackup creates a local backup in case of catastrophic error in reset or restore
 func createLocalDatabaseBackup(ctx context.Context) error {
+	if db.Dialect(db.Instance) == db.Postgres {
+		return nil
+	}
 	return db.Backup(ctx, db.FilePath()+".bak")
 }
 
 func restoreDatabase(shutdown func()) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if db.Dialect(db.Instance) == db.Postgres {
+			jsonError(w, http.StatusNotImplemented, errBackupUnsupported)
+			return
+		}
+
 		// cap upload size to bound disk usage
 		r.Body = http.MaxBytesReader(w, r.Body, 256<<20)
 

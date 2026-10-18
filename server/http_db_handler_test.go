@@ -19,26 +19,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newFileDB opens a file database with one session and returns its path
-func newFileDB(t *testing.T) string {
+// newTestDB opens a database with one session, a file for SQLite so it can be backed up
+func newTestDB(t *testing.T) (driver, dsn string) {
 	t.Helper()
-	dbtest.SkipPostgres(t)
 
-	path := filepath.Join(t.TempDir(), "evcc.db")
-	require.NoError(t, db.NewInstance("sqlite", path))
-	t.Cleanup(func() { _ = db.Close() })
+	if dbtest.IsPostgres() {
+		driver, dsn = dbtest.Target(t)
+	} else {
+		driver, dsn = db.SQLite, filepath.Join(t.TempDir(), "evcc.db")
+	}
+
+	require.NoError(t, db.NewInstance(driver, dsn))
+	conn := db.Instance
+	t.Cleanup(func() {
+		if sqlDB, err := conn.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+	})
 
 	now := time.Now()
 	require.NoError(t, db.Instance.Create(&session.Session{Created: now, Finished: now.Add(time.Hour), ChargedEnergy: 1.0}).Error)
 
-	return path
+	return driver, dsn
 }
 
-// sessionCount reopens the database file and counts sessions
-func sessionCount(t *testing.T, path string) int64 {
+// sessionCount reopens the database and counts sessions
+func sessionCount(t *testing.T, driver, dsn string) int64 {
 	t.Helper()
 
-	conn, err := db.New("sqlite", path)
+	conn, err := db.New(driver, dsn)
 	require.NoError(t, err)
 
 	var count int64
@@ -51,8 +60,25 @@ func sessionCount(t *testing.T, path string) int64 {
 	return count
 }
 
+func restoreRequest(t *testing.T, data []byte) *http.Request {
+	t.Helper()
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	part, err := mw.CreateFormFile("file", "evcc-backup.db")
+	require.NoError(t, err)
+	_, err = io.Copy(part, bytes.NewReader(data))
+	require.NoError(t, err)
+	require.NoError(t, mw.Close())
+
+	req := httptest.NewRequest(http.MethodPost, "/restore", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	return req
+}
+
 func TestBackupHandler(t *testing.T) {
-	newFileDB(t)
+	dbtest.SkipPostgres(t)
+	newTestDB(t)
 
 	rec := httptest.NewRecorder()
 	getBackup()(rec, httptest.NewRequest(http.MethodGet, "/backup", nil))
@@ -63,8 +89,26 @@ func TestBackupHandler(t *testing.T) {
 	assert.True(t, strings.HasPrefix(rec.Body.String(), "SQLite format 3\x00"), "backup is a sqlite file")
 }
 
+func TestBackupRestoreUnsupportedOnPostgres(t *testing.T) {
+	if !dbtest.IsPostgres() {
+		t.Skip("postgres only")
+	}
+	driver, dsn := newTestDB(t)
+
+	rec := httptest.NewRecorder()
+	getBackup()(rec, httptest.NewRequest(http.MethodGet, "/backup", nil))
+	assert.Equal(t, http.StatusNotImplemented, rec.Code)
+	assert.Contains(t, rec.Body.String(), "pg_dump")
+
+	rec = httptest.NewRecorder()
+	restoreDatabase(func() { t.Fatal("must not shut down") })(rec, restoreRequest(t, []byte("data")))
+	assert.Equal(t, http.StatusNotImplemented, rec.Code)
+
+	assert.EqualValues(t, 1, sessionCount(t, driver, dsn), "data untouched")
+}
+
 func TestResetHandler(t *testing.T) {
-	path := newFileDB(t)
+	driver, dsn := newTestDB(t)
 
 	var stopped bool
 	rec := httptest.NewRecorder()
@@ -74,25 +118,28 @@ func TestResetHandler(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, rec.Code)
 	assert.True(t, stopped, "shutdown requested")
 
-	_, err := os.Stat(path + ".bak")
-	assert.NoError(t, err, "local backup created before the reset")
+	if !dbtest.IsPostgres() {
+		_, err := os.Stat(dsn + ".bak")
+		assert.NoError(t, err, "local backup created before the reset")
+	}
 
-	assert.Zero(t, sessionCount(t, path), "sessions deleted")
+	assert.Zero(t, sessionCount(t, driver, dsn), "sessions deleted")
 }
 
 func TestResetHandlerKeepsUnselected(t *testing.T) {
-	path := newFileDB(t)
+	driver, dsn := newTestDB(t)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/reset", strings.NewReader(`{"settings":true}`))
 	resetDatabase(func() {})(rec, req)
 
 	require.Equal(t, http.StatusNoContent, rec.Code)
-	assert.EqualValues(t, 1, sessionCount(t, path), "sessions untouched")
+	assert.EqualValues(t, 1, sessionCount(t, driver, dsn), "sessions untouched")
 }
 
 func TestRestoreHandler(t *testing.T) {
-	path := newFileDB(t)
+	dbtest.SkipPostgres(t)
+	driver, dsn := newTestDB(t)
 
 	// snapshot with one session, then drop it from the live database
 	snapshot := filepath.Join(t.TempDir(), "snapshot.db")
@@ -102,27 +149,18 @@ func TestRestoreHandler(t *testing.T) {
 	data, err := os.ReadFile(snapshot)
 	require.NoError(t, err)
 
-	var body bytes.Buffer
-	mw := multipart.NewWriter(&body)
-	part, err := mw.CreateFormFile("file", "evcc-backup.db")
-	require.NoError(t, err)
-	_, err = io.Copy(part, bytes.NewReader(data))
-	require.NoError(t, err)
-	require.NoError(t, mw.Close())
-
 	var stopped bool
-	req := httptest.NewRequest(http.MethodPost, "/restore", &body)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
 	rec := httptest.NewRecorder()
-	restoreDatabase(func() { stopped = true })(rec, req)
+	restoreDatabase(func() { stopped = true })(rec, restoreRequest(t, data))
 
 	require.Equal(t, http.StatusNoContent, rec.Code)
 	assert.True(t, stopped, "shutdown requested")
-	assert.EqualValues(t, 1, sessionCount(t, path), "session restored")
+	assert.EqualValues(t, 1, sessionCount(t, driver, dsn), "session restored")
 }
 
 func TestRestoreHandlerMissingFile(t *testing.T) {
-	newFileDB(t)
+	dbtest.SkipPostgres(t)
+	newTestDB(t)
 
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)

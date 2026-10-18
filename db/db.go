@@ -26,14 +26,26 @@ const (
 var (
 	Instance *gorm.DB
 	filePath string // Store the actual SQLite file path
+	location string // Human readable server location of a network database
 )
 
 func FilePath() string {
 	return filePath
 }
 
+// Location describes where the database lives, without credentials
+func Location() string {
+	if filePath != "" {
+		return filePath
+	}
+	return location
+}
+
 // Dialect returns the database type of the connection
 func Dialect(conn *gorm.DB) string {
+	if conn == nil {
+		return ""
+	}
 	return conn.Dialector.Name()
 }
 
@@ -105,8 +117,9 @@ func New(driver, dsn string) (*gorm.DB, error) {
 		}
 
 		filePath = ""
+		location = fmt.Sprintf("%s:%d/%s", cfg.Host, cfg.Port, cfg.Database)
 
-		util.NewLogger("main").INFO.Printf("using postgres database: %s:%d/%s", cfg.Host, cfg.Port, cfg.Database)
+		util.NewLogger("main").INFO.Println("using postgres database:", location)
 
 		dialect = postgres.Open(dsn)
 

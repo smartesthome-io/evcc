@@ -24,6 +24,7 @@ const (
 	Version            = "version"
 	Config             = "config"
 	Database           = "database"
+	DatabaseType       = "databaseType"
 	System             = "system"
 	Timezone           = "timezone"
 	Fatal              = "fatal"
