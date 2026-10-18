@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/evcc-io/evcc/api/globalconfig"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,7 +16,7 @@ import (
 func TestWriteTimeout(t *testing.T) {
 	timeout := 200 * time.Millisecond
 
-	srv := NewHTTPd("", nil, Customization{})
+	srv := NewHTTPd("", nil, Customization{}, globalconfig.UI{})
 	srv.WriteTimeout = timeout
 
 	srv.Router().HandleFunc("/slow", func(w http.ResponseWriter, r *http.Request) {

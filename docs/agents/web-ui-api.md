@@ -8,6 +8,15 @@
 - **Static assets:** embedded in binary (`fs.FS`)
 - **Default port:** 7070
 
+## Frontends
+
+- First-party UI lives in `ui/classic/` (sources, tests, `dist/` embedded by `main.go`). Third-party UIs live in `custom-ui/<name>/` and are loaded at runtime from `ui.customDir`, never embedded. They use only the HTTP API and WebSocket.
+- Every installed UI is served at `/ui/<name>/` (`/ui/classic/` always exists). Relative `api`, `ws`, `i18n`, `providerauth`, `globals.js`, `custom.css`, `custom-logo-*` below a mount are aliased to the backend (`server/ui.go`).
+- `/` serves the UI from the `evcc-ui` cookie, else `ui.default` (classic stays at `/`, others redirect to their mount). The cookie only records a deviation from the default and is set by visiting a mount.
+- A custom UI needs a `ui.json` (`name` equal to the directory, optional `title`, `entry`). Names match `^[a-z0-9-]+$`; `classic`, `api`, `ws`, `assets`, `meta`, `i18n` are reserved.
+- OAuth callbacks redirect to `/ui/classic/#/config`.
+- Shared Playwright harness: `testkit/`. Specs per UI: `ui/<name>/tests`.
+
 ## REST API (base `/api/`)
 
 ### Site-level

@@ -18,6 +18,20 @@
         }
       }
     },
+    "ui": {
+      "type": "object",
+      "description": "UI",
+      "properties": {
+        "default": {
+          "type": "string",
+          "description": "Name of the frontend served at / (default: classic)"
+        },
+        "customDir": {
+          "type": "string",
+          "description": "Directory containing custom frontends, one subdirectory with a ui.json per frontend"
+        }
+      }
+    },
     "interval": {
       "$ref": "#/definitions/duration"
     },

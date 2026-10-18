@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	eapi "github.com/evcc-io/evcc/api"
@@ -44,6 +45,8 @@ func (r route) Methods() []string {
 // HTTPd wraps an http.Server and adds the root router
 type HTTPd struct {
 	*http.Server
+	router *mux.Router
+	uis    *uiRegistry
 }
 
 // Customization contains white-label settings for the UI
@@ -59,7 +62,7 @@ type Customization struct {
 }
 
 // NewHTTPd creates HTTP server with configured routes for loadpoint
-func NewHTTPd(addr string, hub *SocketHub, custom Customization) *HTTPd {
+func NewHTTPd(addr string, hub *SocketHub, custom Customization, uiConfig globalconfig.UI) *HTTPd {
 	router := mux.NewRouter().StrictSlash(true)
 
 	log := util.NewLogger("httpd")
@@ -134,17 +137,29 @@ func NewHTTPd(addr string, hub *SocketHub, custom Customization) *HTTPd {
 	}
 
 	static.HandleFunc("/globals.js", globalsJsHandler(custom))
-	static.HandleFunc("/", indexHandler())
+	uis, err := newUIRegistry(uiConfig, assets.Web)
+	if err != nil {
+		log.FATAL.Fatal(err)
+	}
+	log.INFO.Printf("ui: %s (default %s)", strings.Join(uis.names(), ", "), uis.def)
+
+	static.HandleFunc("/", uis.rootHandler(indexHandler()))
 	for _, dir := range []string{"assets", "meta"} {
 		static.PathPrefix("/" + dir).Handler(http.FileServer(http.FS(assets.Web)))
 	}
 
 	static.PathPrefix("/i18n").Handler(http.StripPrefix("/i18n", http.FileServer(http.FS(assets.I18n))))
 
+	mounts := router.PathPrefix(strings.TrimSuffix(uiMountPath, "/")).Subrouter()
+	mounts.Use(handlers.CompressHandler)
+	mounts.PathPrefix("/{name:[a-z0-9-]+}").HandlerFunc(uis.mountHandler(indexHandler()))
+
 	srv := &HTTPd{
+		router: router,
+		uis:    uis,
 		Server: &http.Server{
 			Addr:         addr,
-			Handler:      router,
+			Handler:      uis.aliasHandler(router),
 			ReadTimeout:  5 * time.Second,
 			WriteTimeout: 30 * time.Second,
 			IdleTimeout:  120 * time.Second,
@@ -158,12 +173,12 @@ func NewHTTPd(addr string, hub *SocketHub, custom Customization) *HTTPd {
 
 // Router returns the main router
 func (s *HTTPd) Router() *mux.Router {
-	return s.Handler.(*mux.Router)
+	return s.router
 }
 
 // RegisterSiteHandlers connects the http handlers to the site
 func (s *HTTPd) RegisterSiteHandlers(site site.API) {
-	router := s.Server.Handler.(*mux.Router)
+	router := s.router
 
 	// api
 	api := router.PathPrefix("/api").Subrouter()
@@ -283,7 +298,7 @@ func (s *HTTPd) RegisterSiteHandlers(site site.API) {
 
 // RegisterSystemHandler provides system level handlers
 func (s *HTTPd) RegisterSystemHandler(site *core.Site, pub publisher, cache *util.ParamCache, auth auth.Auth, shutdown func(), configFile string, remoteAccess *remote.Remote) {
-	router := s.Server.Handler.(*mux.Router)
+	router := s.router
 
 	// api
 	api := router.PathPrefix("/api").Subrouter()

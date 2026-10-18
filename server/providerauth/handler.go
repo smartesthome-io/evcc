@@ -206,7 +206,7 @@ func (a *Handler) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Handler) redirectToError(w http.ResponseWriter, r *http.Request, message string) {
-	http.Redirect(w, r, "/#/config?callbackError="+url.QueryEscape(message), http.StatusFound)
+	http.Redirect(w, r, "/ui/classic/#/config?callbackError="+url.QueryEscape(message), http.StatusFound)
 }
 
 func (a *Handler) handleCallback(w http.ResponseWriter, r *http.Request) {
@@ -258,5 +258,5 @@ func (a *Handler) handleCallback(w http.ResponseWriter, r *http.Request) {
 		query = entry.returnTo + "&" + query
 	}
 
-	http.Redirect(w, r, "/#/config?"+query, http.StatusFound)
+	http.Redirect(w, r, "/ui/classic/#/config?"+query, http.StatusFound)
 }

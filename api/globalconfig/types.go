@@ -36,6 +36,7 @@ const (
 
 type All struct {
 	Network         Network
+	UI              UI
 	Ocpp            ocpp.Config
 	Log             string
 	SponsorToken    string
@@ -65,6 +66,12 @@ type All struct {
 	Loadpoints      []config.Named
 	Circuits        []config.Named
 	Curtailers      []config.Named
+}
+
+// UI selects the frontend and the location of custom frontends
+type UI struct {
+	Default   string
+	CustomDir string
 }
 
 type Javascript struct {
