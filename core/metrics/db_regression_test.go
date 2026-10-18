@@ -250,3 +250,79 @@ func TestQueryEnergySeriesOrderIsBytewise(t *testing.T) {
 	}
 	require.Equal(t, []string{"Zeta", "alpha", "solar roof"}, titles)
 }
+
+func TestTimeSeriesTablesAreHypertables(t *testing.T) {
+	dbtest.RequireTimescale(t)
+	dbtest.NewInstance(t)
+
+	hypertables := func() map[string]int64 {
+		var rows []struct {
+			Name     string
+			Interval int64
+		}
+		require.NoError(t, db.Instance.Raw(`SELECT hypertable_name AS name, integer_interval AS interval
+			FROM timescaledb_information.dimensions WHERE hypertable_schema = current_schema()`).Scan(&rows).Error)
+
+		res := make(map[string]int64)
+		for _, r := range rows {
+			res[r.Name] = r.Interval
+		}
+		return res
+	}
+
+	chunk := int64(hypertableChunk.Seconds())
+	require.Equal(t, map[string]int64{"meters": chunk, "tariffs": chunk}, hypertables())
+
+	e := entity{Id: 2, Name: "pv1", Group: PV}
+	require.NoError(t, db.Instance.Create(&e).Error)
+	persistDay(t, e, time.Date(2026, 4, 15, 0, 0, 0, 0, time.UTC), 96, 1.0)
+
+	// restart on converted tables
+	require.NoError(t, SetupSchema())
+	require.Equal(t, map[string]int64{"meters": chunk, "tariffs": chunk}, hypertables())
+
+	var count int64
+	require.NoError(t, db.Instance.Model(new(meter)).Count(&count).Error)
+	require.EqualValues(t, 96, count)
+}
+
+func TestTimestampColumnsAreNotNullOnFreshSQLite(t *testing.T) {
+	dbtest.SkipPostgres(t)
+	dbtest.NewInstance(t)
+
+	for _, table := range []string{"meters", "tariffs"} {
+		var notNull int
+		require.NoError(t, db.Instance.Raw(`SELECT "notnull" FROM pragma_table_info(?) WHERE name = 'ts'`, table).Scan(&notNull).Error)
+		require.Equal(t, 1, notNull, table)
+	}
+}
+
+func TestSetupSchemaKeepsNullableTimestamp(t *testing.T) {
+	dbtest.SkipPostgres(t)
+	dbtest.NewInstance(t)
+
+	// a database created before ts was declared not null
+	require.NoError(t, db.Instance.Migrator().DropTable("meters", "tariffs"))
+	for _, stmt := range []string{
+		`CREATE TABLE meters (meter integer, ts integer, energy real, return_energy real, soc_temp real, recovered numeric)`,
+		`CREATE UNIQUE INDEX meters_meter_ts ON meters(meter, ts)`,
+		`INSERT INTO meters (meter, ts, energy) VALUES (1, 900, 1.5)`,
+		`CREATE TABLE tariffs (ts integer, grid real, feedin real, co2 real, temperature real)`,
+		`CREATE UNIQUE INDEX idx_tariffs_timestamp ON tariffs(ts)`,
+	} {
+		require.NoError(t, db.Instance.Exec(stmt).Error, stmt)
+	}
+
+	require.NoError(t, SetupSchema())
+	require.NoError(t, db.Instance.AutoMigrate(new(tariffValue)))
+
+	for _, table := range []string{"meters", "tariffs"} {
+		var notNull int
+		require.NoError(t, db.Instance.Raw(`SELECT "notnull" FROM pragma_table_info(?) WHERE name = 'ts'`, table).Scan(&notNull).Error)
+		require.Zero(t, notNull, "%s is not rebuilt", table)
+	}
+
+	var count int64
+	require.NoError(t, db.Instance.Table("meters").Count(&count).Error)
+	require.EqualValues(t, 1, count)
+}

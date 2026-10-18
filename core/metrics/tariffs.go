@@ -13,7 +13,7 @@ import (
 )
 
 type tariffValue struct {
-	Timestamp   int64    `gorm:"column:ts;uniqueIndex"` // 15min boundary
+	Timestamp   int64    `gorm:"column:ts;not null;uniqueIndex"` // 15min boundary
 	Grid        *float64 `gorm:"column:grid"`
 	FeedIn      *float64 `gorm:"column:feedin"`
 	Co2         *float64 `gorm:"column:co2"`
@@ -27,7 +27,13 @@ func (tariffValue) TableName() string {
 func init() {
 	db.RegisterModels(new(tariffValue))
 	db.Register(func(_ *gorm.DB) error {
-		return db.Instance.AutoMigrate(new(tariffValue))
+		if err := db.Instance.AutoMigrate(new(tariffValue)); err != nil {
+			return err
+		}
+
+		db.EnableHypertable(db.Instance, "tariffs", "ts", hypertableChunk)
+
+		return nil
 	})
 }
 

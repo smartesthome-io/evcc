@@ -122,6 +122,16 @@ func TestMigrateDatabase(t *testing.T) {
 	assert.InDelta(t, 1250, energy, 1e-6)
 	assert.EqualValues(t, 1, recovered)
 
+	hypertables := func() int64 {
+		var n int64
+		require.NoError(t, conn.Raw("SELECT count(*) FROM timescaledb_information.hypertables WHERE hypertable_schema = current_schema()").Scan(&n).Error)
+		return n
+	}
+	timescale := db.HasTimescale(conn)
+	if timescale {
+		assert.EqualValues(t, 2, hypertables(), "meters and tariffs")
+	}
+
 	// open session survives with its zero finished time
 	var open int64
 	require.NoError(t, conn.Model(new(session.Session)).Where(map[string]any{"finished": time.Time{}}).Count(&open).Error)
@@ -142,6 +152,9 @@ func TestMigrateDatabase(t *testing.T) {
 		require.NoError(t, migrateDatabase(path, dsn, true))
 		assert.EqualValues(t, 4, count(t, conn, "sessions"))
 		assert.EqualValues(t, 2500, count(t, conn, "meters"))
+		if timescale {
+			assert.EqualValues(t, 2, hypertables())
+		}
 	})
 }
 

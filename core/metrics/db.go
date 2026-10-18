@@ -11,9 +11,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// hypertableChunk is the time range of a TimescaleDB chunk
+const hypertableChunk = 30 * 24 * time.Hour
+
 type meter struct {
 	Meter        int      `json:"meter" gorm:"column:meter;uniqueIndex:meters_meter_ts"`
-	Timestamp    int64    `json:"ts" gorm:"column:ts;uniqueIndex:meters_meter_ts"` // start of 15min slot
+	Timestamp    int64    `json:"ts" gorm:"column:ts;not null;uniqueIndex:meters_meter_ts"` // start of 15min slot
 	Entity       entity   `json:"-" gorm:"foreignkey:Meter;references:Id"`
 	Energy       float64  `json:"energy" gorm:"column:energy"`
 	ReturnEnergy float64  `json:"returnEnergy" gorm:"column:return_energy"`
@@ -135,7 +138,13 @@ func SetupSchema() error {
 		}
 	}
 
-	return db.Instance.AutoMigrate(new(meter))
+	if err := db.Instance.AutoMigrate(new(meter)); err != nil {
+		return err
+	}
+
+	db.EnableHypertable(db.Instance, "meters", "ts", hypertableChunk)
+
+	return nil
 }
 
 // OnPersist, if set, is called with the slot start after a slot is written.
