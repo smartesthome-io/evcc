@@ -19,6 +19,7 @@ interval: 30s # control cycle interval. Interval <30s can lead to unexpected beh
 # database:
 #   type: postgres
 #   dsn: postgres://user:password@host:5432/evcc
+# if the timescaledb extension is enabled in that database, the time series tables use it automatically
 
 # sponsor token enables optional features (request at https://sponsor.evcc.io)
 # sponsortoken:
