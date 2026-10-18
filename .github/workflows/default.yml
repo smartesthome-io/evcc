@@ -121,6 +121,11 @@ jobs:
           go-version-file: go.mod
         id: go
 
+      - name: Install PostgreSQL client
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-18
+
       - name: Test
         run: mkdir dist && touch dist/empty && make test-postgres
 
@@ -158,6 +163,11 @@ jobs:
         with:
           go-version-file: go.mod
         id: go
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-18
 
       - name: Test
         run: mkdir dist && touch dist/empty && make test-postgres

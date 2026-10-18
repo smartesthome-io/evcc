@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -50,8 +51,23 @@ func useClientTools(t *testing.T) {
 		return
 	}
 
-	if _, err := exec.LookPath("pg_dump"); err != nil {
+	out, err := exec.Command("pg_dump", "--version").Output()
+	if err != nil {
 		t.Skip("pg_dump not installed")
+	}
+
+	// pg_dump refuses servers newer than itself
+	conn, err := db.New(db.Postgres, os.Getenv(dbtest.Env))
+	require.NoError(t, err)
+	t.Cleanup(func() { closeDB(t, conn) })
+
+	var serverMajor int
+	require.NoError(t, conn.Raw("SELECT current_setting('server_version_num')::int / 10000").Scan(&serverMajor).Error)
+
+	var clientMajor int
+	_, _ = fmt.Sscanf(strings.TrimPrefix(strings.TrimSpace(string(out)), "pg_dump (PostgreSQL) "), "%d", &clientMajor)
+	if clientMajor < serverMajor {
+		t.Skipf("pg_dump %d is older than the server %d", clientMajor, serverMajor)
 	}
 }
 

@@ -103,7 +103,7 @@ func dsnSettings(dsn string) map[string]string {
 		return res
 	}
 
-	for _, field := range strings.Fields(dsn) {
+	for field := range strings.FieldsSeq(dsn) {
 		if k, v, ok := strings.Cut(field, "="); ok {
 			res[k] = strings.Trim(v, "'")
 		}
