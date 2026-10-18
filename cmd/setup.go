@@ -720,18 +720,28 @@ func configureEnvironment(cmd *cobra.Command, conf *globalconfig.All) error {
 	return err
 }
 
-// configureDatabase configures session database
-func configureDatabase(conf globalconfig.DB) error {
-	conf.Type = db.DriverFromDSN(strings.ToLower(conf.Type), conf.Dsn)
+// databaseTarget returns the database type and dsn of the configuration
+func databaseTarget(conf globalconfig.DB) (string, string, error) {
+	typ := db.DriverFromDSN(strings.ToLower(conf.Type), conf.Dsn)
 
 	if conf.Dsn == "" {
-		if conf.Type == db.Postgres {
-			return errors.New("missing database dsn for postgres")
+		if typ == db.Postgres {
+			return "", "", errors.New("missing database dsn for postgres")
 		}
-		conf.Dsn = userDB
+		return typ, userDB, nil
 	}
 
-	if err := db.NewInstance(conf.Type, conf.Dsn); err != nil {
+	return typ, conf.Dsn, nil
+}
+
+// configureDatabase configures session database
+func configureDatabase(conf globalconfig.DB) error {
+	typ, dsn, err := databaseTarget(conf)
+	if err != nil {
+		return err
+	}
+
+	if err := db.NewInstance(typ, dsn); err != nil {
 		return err
 	}
 

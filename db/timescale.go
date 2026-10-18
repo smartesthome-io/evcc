@@ -71,3 +71,23 @@ func EnableHypertable(conn *gorm.DB, table, column string, chunk time.Duration) 
 
 	return true
 }
+
+// SetTimescaleRestoring prepares TimescaleDB for pg_restore (on) and returns it to normal operation afterwards (off).
+// Without the extension it does nothing.
+func SetTimescaleRestoring(conn *gorm.DB, on bool) error {
+	schema, err := timescaleSchema(conn)
+	if err != nil || schema == "" {
+		return err
+	}
+
+	fn := "timescaledb_post_restore"
+	if on {
+		fn = "timescaledb_pre_restore"
+	}
+
+	if err := conn.Exec(fmt.Sprintf("SELECT %s.%s()", schema, fn)).Error; err != nil {
+		return fmt.Errorf("%s (superuser or database owner rights are required): %w", fn, err)
+	}
+
+	return nil
+}

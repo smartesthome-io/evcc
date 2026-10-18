@@ -252,3 +252,9 @@ func Restore(ctx context.Context, target string) error {
 		return conn.NewRestore(target)
 	})
 }
+
+// SQLitePath returns the database file of a SQLite dsn
+func SQLitePath(dsn string) (string, error) {
+	path, _, _ := strings.Cut(dsn, "?")
+	return homedir.Expand(path)
+}

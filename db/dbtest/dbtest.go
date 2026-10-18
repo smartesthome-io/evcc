@@ -112,3 +112,48 @@ func Target(t testing.TB) (string, string) {
 
 	return db.Postgres, u.String()
 }
+
+// NewDatabase creates an empty PostgreSQL database with the given extensions and returns its dsn.
+// It is dropped on cleanup. Tests that dump a whole database need one of their own.
+func NewDatabase(t testing.TB, extensions ...string) string {
+	t.Helper()
+
+	if !IsPostgres() {
+		t.Skip("postgres only")
+	}
+
+	base, err := url.Parse(os.Getenv(Env))
+	require.NoError(t, err)
+
+	admin, err := db.New(db.Postgres, base.String())
+	require.NoError(t, err)
+
+	name := fmt.Sprintf("evcc_test_%08x", rand.Uint32())
+	require.NoError(t, admin.Exec("CREATE DATABASE "+name+" TEMPLATE template0").Error)
+
+	t.Cleanup(func() {
+		_ = admin.Exec("DROP DATABASE IF EXISTS " + name + " WITH (FORCE)").Error
+		if sqlDB, err := admin.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	u := *base
+	u.Path = "/" + name
+	dsn := u.String()
+
+	if len(extensions) > 0 {
+		conn, err := db.New(db.Postgres, dsn)
+		require.NoError(t, err)
+
+		for _, ext := range extensions {
+			require.NoError(t, conn.Exec("CREATE EXTENSION IF NOT EXISTS "+ext).Error)
+		}
+
+		sqlDB, err := conn.DB()
+		require.NoError(t, err)
+		require.NoError(t, sqlDB.Close())
+	}
+
+	return dsn
+}
