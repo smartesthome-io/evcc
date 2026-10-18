@@ -105,6 +105,7 @@ test-ui::
 test::
 	@echo "Running testsuite"
 	CGO_ENABLED=0 go test $(BUILD_TAGS) ./...
+	CGO_ENABLED=0 TZ=Europe/Berlin go test -count=1 $(BUILD_TAGS) ./core/metrics
 
 porcelain::
 	gofmt -w -l $$(find . -name '*.go')
