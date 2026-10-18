@@ -174,6 +174,10 @@ require (
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
 	github.com/insomniacslk/xjson v0.0.0-20231023101448-2249e546a131 // indirect
 	github.com/itchyny/timefmt-go v0.1.8 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.10.0 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
@@ -240,6 +244,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
 	gopkg.in/go-playground/validator.v9 v9.30.0 // indirect
 	gopkg.in/sourcemap.v1 v1.0.5 // indirect
+	gorm.io/driver/postgres v1.6.3 // indirect
 	k8s.io/klog/v2 v2.90.1 // indirect
 	mellium.im/reader v0.1.0 // indirect
 	mellium.im/sasl v0.3.2 // indirect

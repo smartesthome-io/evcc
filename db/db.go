@@ -9,11 +9,18 @@ import (
 	"strings"
 
 	"github.com/evcc-io/evcc/util"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/libtnb/sqlite"
 	"github.com/mitchellh/go-homedir"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	sqlite3 "modernc.org/sqlite"
 	sqlite3lib "modernc.org/sqlite/lib"
+)
+
+const (
+	SQLite   = "sqlite"
+	Postgres = "postgres"
 )
 
 var (
@@ -25,12 +32,25 @@ func FilePath() string {
 	return filePath
 }
 
+// Dialect returns the database type of the connection
+func Dialect(conn *gorm.DB) string {
+	return conn.Dialector.Name()
+}
+
+// DriverFromDSN returns the driver for a dsn that unambiguously names one, otherwise the given driver
+func DriverFromDSN(driver, dsn string) string {
+	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
+		return Postgres
+	}
+	return driver
+}
+
 func New(driver, dsn string) (*gorm.DB, error) {
 	var dialect gorm.Dialector
 	var memory bool
 
 	switch driver {
-	case "sqlite":
+	case SQLite:
 		// Split database path and connection parameters
 		dbPath, params, _ := strings.Cut(dsn, "?")
 
@@ -76,19 +96,38 @@ func New(driver, dsn string) (*gorm.DB, error) {
 		util.NewLogger("main").INFO.Println("using sqlite database:", connectionStr)
 
 		dialect = sqlite.Open(connectionStr)
-	// case "postgres":
-	// 	dialect = postgres.Open(dsn)
-	// case "mysql":
-	// 	dialect = mysql.Open(dsn)
+
+	case Postgres:
+		// parsing redacts the password in its errors
+		cfg, err := pgconn.ParseConfig(dsn)
+		if err != nil {
+			return nil, fmt.Errorf("invalid postgres dsn: %w", err)
+		}
+
+		filePath = ""
+
+		util.NewLogger("main").INFO.Printf("using postgres database: %s:%d/%s", cfg.Host, cfg.Port, cfg.Database)
+
+		dialect = postgres.Open(dsn)
+
 	default:
-		return nil, fmt.Errorf("invalid database type: %s not in [sqlite]", driver)
+		return nil, fmt.Errorf("invalid database type: %s not in [%s, %s]", driver, SQLite, Postgres)
 	}
 
 	db, err := gorm.Open(dialect, &gorm.Config{
 		Logger: &Logger{util.NewLogger("db")},
 	})
 	if err != nil {
+		if driver == Postgres {
+			return nil, fmt.Errorf("connect to postgres: %w", err)
+		}
 		return nil, err
+	}
+
+	if driver == Postgres {
+		if err := checkZone(db); err != nil {
+			return nil, err
+		}
 	}
 
 	// WAL lets readers run alongside the single writer. In-memory databases
@@ -128,11 +167,17 @@ func Close() error {
 	return db.Close()
 }
 
-// IsReadonly reports whether err indicates a database file that is not
+// IsReadonly reports whether err indicates a database that is not
 // writable by the current user. The code mask covers extended result codes.
 func IsReadonly(err error) bool {
 	var serr *sqlite3.Error
-	return errors.As(err, &serr) && serr.Code()&0xff == sqlite3lib.SQLITE_READONLY
+	if errors.As(err, &serr) {
+		return serr.Code()&0xff == sqlite3lib.SQLITE_READONLY
+	}
+
+	// read_only_sql_transaction
+	var perr *pgconn.PgError
+	return errors.As(err, &perr) && perr.Code == "25006"
 }
 
 type backuper interface {
