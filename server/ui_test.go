@@ -1,6 +1,7 @@
 package server
 
 import (
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -41,6 +42,23 @@ func TestLoadCustomUIs(t *testing.T) {
 		assert.Equal(t, "index.html", res[0].Entry)
 	})
 
+	t.Run("root subdirectory", func(t *testing.T) {
+		dir := t.TempDir()
+		writeUI(t, dir, "built", `{"name":"built","root":"dist"}`, map[string]string{
+			"dist/index.html": "<html>built",
+			"src/secret.txt":  "secret",
+		})
+
+		res, err := loadCustomUIs(dir)
+		require.NoError(t, err)
+		require.Len(t, res, 1)
+
+		_, err = fs.Stat(res[0].FS, "index.html")
+		require.NoError(t, err)
+		_, err = fs.Stat(res[0].FS, "src/secret.txt")
+		require.Error(t, err)
+	})
+
 	t.Run("missing dir", func(t *testing.T) {
 		_, err := loadCustomUIs(filepath.Join(t.TempDir(), "missing"))
 		require.Error(t, err)
@@ -56,6 +74,8 @@ func TestLoadCustomUIs(t *testing.T) {
 		"entry traversal": {"simple", `{"name":"simple","entry":"../index.html"}`},
 		"entry missing":   {"simple", `{"name":"simple","entry":"app.html"}`},
 		"broken manifest": {"simple", `{`},
+		"root traversal":  {"simple", `{"name":"simple","root":"../x"}`},
+		"root missing":    {"simple", `{"name":"simple","root":"dist"}`},
 	} {
 		t.Run(name, func(t *testing.T) {
 			dir := t.TempDir()

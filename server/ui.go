@@ -44,6 +44,8 @@ type uiManifestFile struct {
 	Name  string `json:"name"`
 	Title string `json:"title"`
 	Entry string `json:"entry"`
+	// Root is the subdirectory containing the built files, e.g. dist
+	Root string `json:"root"`
 }
 
 // uiEntry is an installed frontend
@@ -145,6 +147,17 @@ func readUIManifest(name string, fsys fs.FS) (uiEntry, error) {
 	var m uiManifestFile
 	if err := json.Unmarshal(b, &m); err != nil {
 		return uiEntry{}, fmt.Errorf("%s: %w", uiManifest, err)
+	}
+
+	if m.Root != "" {
+		if !fs.ValidPath(m.Root) || m.Root == "." {
+			return uiEntry{}, fmt.Errorf("%s: invalid root %q", uiManifest, m.Root)
+		}
+		sub, err := fs.Sub(fsys, m.Root)
+		if err != nil {
+			return uiEntry{}, fmt.Errorf("%s: %w", uiManifest, err)
+		}
+		fsys = sub
 	}
 
 	if m.Name != name {
