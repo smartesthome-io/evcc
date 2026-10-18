@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -182,4 +183,31 @@ func TestUnitMigrateConstraint(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("AutoMigrate deadlocked")
 	}
+}
+
+func TestUnitIsReadonly(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("file permissions do not apply to root")
+	}
+
+	path := t.TempDir() + "/evcc.db"
+
+	rw, err := New("sqlite", path)
+	require.NoError(t, err)
+	require.NoError(t, rw.Exec("CREATE TABLE t (v integer)").Error)
+	sqlDB, err := rw.DB()
+	require.NoError(t, err)
+	require.NoError(t, sqlDB.Close())
+
+	require.NoError(t, os.Chmod(path, 0o400))
+
+	ro, err := New("sqlite", path)
+	if err == nil {
+		err = ro.Exec("INSERT INTO t VALUES (1)").Error
+	}
+	require.Error(t, err)
+	assert.True(t, IsReadonly(err), "got %v", err)
+
+	assert.False(t, IsReadonly(errors.New("other")))
+	assert.False(t, IsReadonly(nil))
 }
