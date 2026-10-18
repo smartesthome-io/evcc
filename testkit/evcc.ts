@@ -107,7 +107,7 @@ async function _restoreDatabase(sqlDumps: string) {
   const dumps = Array.isArray(sqlDumps) ? sqlDumps : [sqlDumps];
   for (const dump of dumps) {
     log("loading database", dbPath(), dump);
-    execSync(`sqlite3 ${dbPath()} < ${testDir()}/${dump}`);
+    execSync(`sqlite3 ${dbPath()} < ${path.isAbsolute(dump) ? dump : `${testDir()}/${dump}`}`);
   }
 }
 

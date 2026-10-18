@@ -50,4 +50,7 @@ export interface State {
   consumers?: Meter[];
   loadpoints: Loadpoint[];
   version?: string;
+  /** changes whenever a 15 minute history slot has been persisted */
+  historyUpdated?: string;
+  forecast?: { solar?: { today?: { energy: number; complete: boolean } } };
 }
