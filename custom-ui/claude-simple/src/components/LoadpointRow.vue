@@ -5,25 +5,44 @@
 				<h3>{{ loadpoint.title }}</h3>
 				<p class="muted sub">{{ subline }}</p>
 			</div>
-			<div class="power" :class="{ active: powerActive }">
-				{{ powerActive ? fmtPower(loadpoint.chargePower) : stateLabel }}
+			<div class="power-block">
+				<div class="power" :class="{ active: powerActive }">
+					{{ powerActive ? fmtPower(loadpoint.chargePower) : stateLabel }}
+				</div>
+				<div v-if="energyText" class="muted energy">{{ energyText }}</div>
 			</div>
 		</div>
 
 		<div v-if="hasSoc" class="soc">
 			<div
-				class="bar"
+				class="bar track"
 				role="progressbar"
 				:aria-valuenow="Math.round(loadpoint.vehicleSoc)"
 				aria-valuemin="0"
 				aria-valuemax="100"
 			>
-				<span
-					:style="{ width: `${Math.min(Math.max(loadpoint.vehicleSoc, 0), 100)}%` }"
-				></span>
+				<span :style="{ width: `${clamp(loadpoint.vehicleSoc)}%` }"></span>
+				<i
+					v-if="startSoc !== null"
+					class="tick start"
+					:style="{ left: `${clamp(startSoc)}%` }"
+				></i>
+				<i
+					v-if="targetSoc !== null"
+					class="tick target"
+					:style="{ left: `${clamp(targetSoc)}%` }"
+				></i>
 			</div>
 			<span class="value">{{ socText }}</span>
 		</div>
+		<p v-if="startSoc !== null || targetSoc !== null" class="muted marks">
+			<span v-if="startSoc !== null">
+				{{ t("loadpoints.start") }} {{ Math.round(startSoc) }} %
+			</span>
+			<span v-if="targetSoc !== null">
+				{{ t("loadpoints.target") }} {{ Math.round(targetSoc) }} %
+			</span>
+		</p>
 
 		<div class="modes" role="group" :aria-label="loadpoint.title">
 			<button
@@ -43,7 +62,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { Loadpoint } from "../types";
-import { fmtDuration, fmtPower } from "../format";
+import { fmtDuration, fmtEnergy, fmtPower } from "../format";
 import { t, type Key } from "../i18n";
 
 const props = defineProps<{ loadpoint: Loadpoint }>();
@@ -71,6 +90,25 @@ const socText = computed(() => {
 	return !heating.value && lp.vehicleRange > 0
 		? `${value} · ${Math.round(lp.vehicleRange)} km`
 		: value;
+});
+
+const clamp = (v: number) => Math.min(Math.max(v, 0), 100);
+
+const energyText = computed(() => {
+	const wh = props.loadpoint.sessionEnergy;
+	if (!Number.isFinite(wh) || wh <= 0) return "";
+	return `${fmtEnergy(wh / 1000)} ${heating.value ? t("heating.used") : t("loadpoints.charged")}`;
+});
+
+const startSoc = computed(() => {
+	const v = props.loadpoint.sessionSocStart;
+	return !heating.value && typeof v === "number" && v > 0 ? v : null;
+});
+
+const targetSoc = computed(() => {
+	const lp = props.loadpoint;
+	const v = lp.effectiveLimitSoc || lp.limitSoc;
+	return !heating.value && v > 0 ? v : null;
 });
 
 const subline = computed(() => {
@@ -111,6 +149,15 @@ h3 {
 	font-size: 0.85rem;
 }
 
+.power-block {
+	text-align: right;
+}
+
+.energy {
+	font-size: 0.8rem;
+	margin-top: 2px;
+}
+
 .power {
 	font-weight: 700;
 	white-space: nowrap;
@@ -130,6 +177,32 @@ h3 {
 
 .soc .bar {
 	flex: 1;
+}
+
+.track {
+	position: relative;
+	overflow: visible;
+}
+
+.tick {
+	position: absolute;
+	top: -3px;
+	bottom: -3px;
+	width: 2px;
+	margin-left: -1px;
+	border-radius: 1px;
+	background: var(--muted);
+}
+
+.tick.target {
+	background: var(--text);
+}
+
+.marks {
+	display: flex;
+	gap: 16px;
+	margin: -4px 0 0;
+	font-size: 0.8rem;
 }
 
 .value {

@@ -80,6 +80,7 @@ const (
 	ChargeVoltages    = "chargeVoltages"    // charge voltages
 	ChargedEnergy     = "chargedEnergy"     // charged energy
 	ChargeDuration    = "chargeDuration"    // charge duration
+	SessionSocStart   = "sessionSocStart"   // vehicle soc at session start
 	ChargeTotalImport = "chargeTotalImport" // charge meter total import
 	TodayEnergy       = "todayEnergy"       // energy since midnight
 	Last24hEnergy     = "last24hEnergy"     // energy, rolling 24h

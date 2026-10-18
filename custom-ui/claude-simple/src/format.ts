@@ -12,7 +12,7 @@ export function fmtPower(watt: number | undefined): string {
 
 export function fmtEnergy(kwh: number | undefined): string {
   const v = Number.isFinite(kwh) ? (kwh as number) : 0;
-  return `${nf(v >= 100 ? 0 : 1).format(v)} kWh`;
+  return `${nf(v >= 100 ? 0 : v >= 10 ? 1 : 2).format(v)} kWh`;
 }
 
 export function fmtPercent(value: number | undefined): string {

@@ -28,6 +28,9 @@ export interface Loadpoint {
   vehicleSoc: number;
   vehicleRange: number;
   limitSoc: number;
+  effectiveLimitSoc: number;
+  /** SoC in % when the current session started */
+  sessionSocStart: number | null;
   chargeRemainingDuration?: number;
   chargerFeatureHeating: boolean;
   phasesActive: number;

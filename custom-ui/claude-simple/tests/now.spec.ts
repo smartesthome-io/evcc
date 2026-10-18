@@ -41,6 +41,13 @@ test.describe("now", () => {
     await expect(charging).toContainText("42 %");
   });
 
+  test("charging point shows session energy, start and target soc", async ({ page }) => {
+    const charging = page.getByRole("region", { name: "Charging", exact: true });
+    await expect(charging).toContainText(/\d[.,]\d+ kWh charged/);
+    await expect(charging).toContainText("Start 42 %");
+    await expect(charging).toContainText("Target 100 %");
+  });
+
   test("heating shows temperature and power", async ({ page }) => {
     const heating = page.getByRole("region", { name: "Heating" });
     await expect(heating).toContainText("Heat Pump");

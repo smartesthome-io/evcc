@@ -343,3 +343,65 @@ func TestFinalizeSessionEnergy(t *testing.T) {
 		assert.NotPanics(t, func() { lp.finalizeSessionEnergy() })
 	})
 }
+
+func TestSessionSocStartPublished(t *testing.T) {
+	var err error
+	serverdb.Instance, err = serverdb.New("sqlite", ":memory:")
+	require.NoError(t, err)
+
+	db, err := session.NewStore("foo", serverdb.Instance)
+	require.NoError(t, err)
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mm := api.NewMockMeter(ctrl)
+	me := api.NewMockMeterEnergy(ctrl)
+
+	type EnergyDecorator struct {
+		api.Meter
+		api.MeterEnergy
+	}
+
+	ui := make(chan util.Param, 10)
+	lp := &Loadpoint{
+		log:         util.NewLogger("foo"),
+		clock:       clock.NewMock(),
+		db:          db,
+		uiChan:      ui,
+		chargeMeter: newChargeMeter(&EnergyDecorator{Meter: mm, MeterEnergy: me}),
+	}
+
+	published := func() util.Param {
+		t.Helper()
+		select {
+		case p := <-ui:
+			return p
+		default:
+			t.Fatal("nothing published")
+			return util.Param{}
+		}
+	}
+
+	me.EXPECT().TotalEnergy().Return(1.0, nil).AnyTimes()
+	lp.createSession()
+	for len(ui) > 0 {
+		<-ui
+	}
+
+	lp.updateSession(sessionStart(lp))
+	p := published()
+	assert.Equal(t, "sessionSocStart", p.Key)
+	assert.Nil(t, p.Val.(*float64))
+
+	soc := 42.0
+	lp.updateSession(func(s *session.Session) { s.SocStart = &soc })
+	p = published()
+	require.NotNil(t, p.Val.(*float64))
+	assert.Equal(t, 42.0, *p.Val.(*float64))
+
+	lp.clearSession()
+	p = published()
+	assert.Equal(t, "sessionSocStart", p.Key)
+	assert.Nil(t, p.Val)
+}
