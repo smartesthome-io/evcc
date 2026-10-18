@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	csvexport "github.com/evcc-io/evcc/util/export/csv"
 	"github.com/evcc-io/evcc/util/locale"
 	"github.com/stretchr/testify/require"
@@ -168,7 +169,7 @@ func TestSeriesExport_SocTempColumns(t *testing.T) {
 }
 
 func TestQueryEnergySoc(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	e := entity{Id: 2, Name: "bat", Group: Battery}
@@ -202,7 +203,7 @@ func TestQueryEnergySoc(t *testing.T) {
 }
 
 func TestQueryEnergyGridCost(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	grid := entity{Name: "grid", Group: Grid}

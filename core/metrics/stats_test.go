@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/benbjohnson/clock"
-	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +18,7 @@ func TestCollectorEnergyStats(t *testing.T) {
 
 	slotStart := clock.Now().Truncate(15 * time.Minute)
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector("stats", "stats", "", WithClock(clock))

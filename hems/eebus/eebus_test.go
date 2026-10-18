@@ -7,7 +7,7 @@ import (
 
 	ucapi "github.com/enbility/eebus-go/usecases/api"
 	"github.com/evcc-io/evcc/core/site"
-	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/evcc-io/evcc/hems/hems"
 	"github.com/evcc-io/evcc/server/eebus"
 	"github.com/evcc-io/evcc/util"
@@ -37,7 +37,7 @@ func (s *stubSite) GetGridPower() float64 { return s.gridPower }
 func newTestEEBus(t *testing.T) *EEBus {
 	t.Helper()
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 
 	failsafeProduction := testFailsafeProduction
 	return &EEBus{

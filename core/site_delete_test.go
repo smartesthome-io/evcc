@@ -8,7 +8,7 @@ import (
 	"github.com/evcc-io/evcc/core/keys"
 	"github.com/evcc-io/evcc/core/metrics"
 	"github.com/evcc-io/evcc/core/types"
-	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/evcc-io/evcc/tariff"
 	"github.com/evcc-io/evcc/util"
 	"github.com/evcc-io/evcc/util/config"
@@ -27,7 +27,7 @@ type deleteTestSite struct {
 func newDeleteTestSite(t *testing.T, ctrl *gomock.Controller) *deleteTestSite {
 	t.Helper()
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, metrics.SetupSchema())
 
 	meter := func(power float64) api.Meter {

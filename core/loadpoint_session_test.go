@@ -8,6 +8,7 @@ import (
 	"github.com/evcc-io/evcc/api"
 	"github.com/evcc-io/evcc/core/session"
 	serverdb "github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/evcc-io/evcc/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,9 +24,7 @@ func sessionStart(lp *Loadpoint) func(session *session.Session) {
 }
 
 func TestSession(t *testing.T) {
-	var err error
-	serverdb.Instance, err = serverdb.New("sqlite", ":memory:")
-	require.NoError(t, err)
+	serverdb.Instance = dbtest.New(t)
 
 	db, err := session.NewStore("foo", serverdb.Instance)
 	require.NoError(t, err)
@@ -92,9 +91,7 @@ func TestSession(t *testing.T) {
 }
 
 func TestCloseSessionsOnStartup_emptyDb(t *testing.T) {
-	var err error
-	serverdb.Instance, err = serverdb.New("sqlite", ":memory:")
-	require.NoError(t, err)
+	serverdb.Instance = dbtest.New(t)
 
 	db, err := session.NewStore("foo", serverdb.Instance)
 	require.NoError(t, err)
@@ -105,9 +102,7 @@ func TestCloseSessionsOnStartup_emptyDb(t *testing.T) {
 }
 
 func TestCloseSessionsOnStartup(t *testing.T) {
-	var err error
-	serverdb.Instance, err = serverdb.New("sqlite", ":memory:")
-	require.NoError(t, err)
+	serverdb.Instance = dbtest.New(t)
 
 	db1, err := session.NewStore("foo", serverdb.Instance)
 	require.NoError(t, err)
@@ -187,9 +182,7 @@ func createMockSessions(db *session.DB, clock *clock.Mock) []*session.Session {
 }
 
 func TestResetHeatingSession(t *testing.T) {
-	var err error
-	serverdb.Instance, err = serverdb.New("sqlite", ":memory:")
-	require.NoError(t, err)
+	serverdb.Instance = dbtest.New(t)
 
 	db, err := session.NewStore("foo", serverdb.Instance)
 	require.NoError(t, err)
@@ -262,9 +255,7 @@ func TestResetHeatingSession(t *testing.T) {
 func TestFinalizeSessionEnergy(t *testing.T) {
 	setup := func(t *testing.T) (*Loadpoint, *api.MockMeterEnergy, *api.MockChargeRater) {
 		t.Helper()
-		var err error
-		serverdb.Instance, err = serverdb.New("sqlite", ":memory:")
-		require.NoError(t, err)
+		serverdb.Instance = dbtest.New(t)
 		db, err := session.NewStore("foo", serverdb.Instance)
 		require.NoError(t, err)
 

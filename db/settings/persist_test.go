@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -11,7 +12,7 @@ import (
 // TestPersistClearsDirty guards against clearing the flag on a range copy, which
 // would re-save every setting ever changed on each subsequent Persist.
 func TestPersistClearsDirty(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	t.Cleanup(func() { db.Instance = nil })
 
 	SetString("persisted", "foo")

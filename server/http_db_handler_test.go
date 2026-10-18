@@ -14,6 +14,7 @@ import (
 
 	"github.com/evcc-io/evcc/core/session"
 	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,6 +22,7 @@ import (
 // newFileDB opens a file database with one session and returns its path
 func newFileDB(t *testing.T) string {
 	t.Helper()
+	dbtest.SkipPostgres(t)
 
 	path := filepath.Join(t.TempDir(), "evcc.db")
 	require.NoError(t, db.NewInstance("sqlite", path))

@@ -6,13 +6,14 @@ import (
 
 	"github.com/benbjohnson/clock"
 	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCollectorAddEnergy(t *testing.T) {
 	clock := clock.NewMock()
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector("foo", "foo", "", WithClock(clock))
@@ -39,7 +40,7 @@ func TestCollectorAddEnergy(t *testing.T) {
 func TestCollectorAddEnergyWithEnergyMeter(t *testing.T) {
 	clock := clock.NewMock()
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector("bar", "bar", "", WithClock(clock))
@@ -64,7 +65,7 @@ func TestCollectorAddEnergyWithEnergyMeter(t *testing.T) {
 func TestCollectorAddEnergyWithEnergyMeterAndReturn(t *testing.T) {
 	clock := clock.NewMock()
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector("baz", "baz", "", WithClock(clock))
@@ -90,7 +91,7 @@ func TestCollectorAddEnergyWithEnergyMeterAndReturn(t *testing.T) {
 func TestCollectorAddEnergyWithReturnEnergyMeterAndEnergy(t *testing.T) {
 	clock := clock.NewMock()
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector("baz2", "baz2", "", WithClock(clock))
@@ -116,7 +117,7 @@ func TestCollectorAddEnergyWithReturnEnergyMeterAndEnergy(t *testing.T) {
 func TestCollectorAddEnergyWithBothMeters(t *testing.T) {
 	clock := clock.NewMock()
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector("qux", "qux", "", WithClock(clock))
@@ -136,7 +137,7 @@ func TestCollectorAddEnergyWithBothMeters(t *testing.T) {
 func TestCollectorSetEnergyAndReturnEnergyMeterTotal(t *testing.T) {
 	clock := clock.NewMock()
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector("set", "set", "", WithClock(clock))
@@ -162,7 +163,7 @@ func TestCollectorSetEnergyAndReturnEnergyMeterTotal(t *testing.T) {
 func TestCollectorRecoversAfterFullMeterFailure(t *testing.T) {
 	clock := clock.NewMock()
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector("full-fail", "full-fail", "", WithClock(clock))
@@ -198,7 +199,7 @@ func TestCollectorRecoversAfterFullMeterFailure(t *testing.T) {
 func TestCollectorRecoversAfterFailedEnergyRead(t *testing.T) {
 	clock := clock.NewMock()
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector("energy-fail", "energy-fail", "", WithClock(clock))
@@ -234,7 +235,7 @@ func TestCollectorRecoversAfterFailedEnergyRead(t *testing.T) {
 func TestCollectorSkipsPartialFirstSlot(t *testing.T) {
 	clk := clock.NewMock() // 1970-01-01 00:00:00 UTC
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector("partial", "partial", "", WithClock(clk))
@@ -271,7 +272,7 @@ func TestCollectorSkipsPartialFirstSlot(t *testing.T) {
 func TestCollectorRecoversDowntimeViaMeterReadings(t *testing.T) {
 	clk := clock.NewMock() // 1970-01-01 00:00:00 UTC, on a slot boundary
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector(Grid, "restore", "", WithClock(clk))
@@ -337,7 +338,7 @@ func TestCollectorRecoversDowntimeViaMeterReadings(t *testing.T) {
 func TestCollectorRecoveryWithinCurrentSlot(t *testing.T) {
 	clk := clock.NewMock() // 1970-01-01 00:00:00 UTC, on a slot boundary
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector(Grid, "within", "", WithClock(clk))
@@ -384,7 +385,7 @@ func TestCollectorRecoveryWithinCurrentSlot(t *testing.T) {
 // with a non-empty title fills in (or updates) the title on an existing row,
 // and that passing an empty title never clears a previously stored value.
 func TestCreateEntityRefreshesTitle(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	// existing row with empty title (simulates pre-upgrade data)
@@ -427,7 +428,7 @@ func TestCreateEntityRefreshesTitle(t *testing.T) {
 func TestCollectorSetSocTemp(t *testing.T) {
 	clk := clock.NewMock() // 1970-01-01 00:00:00 UTC, on a slot boundary
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector(Battery, "bat", "", WithClock(clk))
@@ -458,7 +459,7 @@ func TestCollectorSetSocTemp(t *testing.T) {
 func TestCollectorSetSocTempHeating(t *testing.T) {
 	clk := clock.NewMock()
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector(Loadpoint, "lp", "", WithClock(clk))
@@ -483,7 +484,7 @@ func TestCollectorSetSocTempHeating(t *testing.T) {
 
 // a meter regrouped to consumer keeps its id and history via in-place relabel
 func TestCreateEntityReconcilesExtToConsumer(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	// ext meter with a persisted history slot
@@ -514,7 +515,7 @@ func TestCreateEntityReconcilesExtToConsumer(t *testing.T) {
 
 // an existing consumer row blocks the relabel, leaving the meter row untouched
 func TestCreateEntityReconcileGuard(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	meterRow, err := createEntity(Meter, "db:7", "")
@@ -537,7 +538,7 @@ func TestCreateEntityReconcileGuard(t *testing.T) {
 func TestCollectorLastSlotEnergy(t *testing.T) {
 	clk := clock.NewMock() // 1970-01-01 00:00:00 UTC, on a slot boundary
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector(Home, "last", "", WithClock(clk))
@@ -573,7 +574,7 @@ func TestCollectorLastSlotEnergy(t *testing.T) {
 func TestCollectorSetEnergy(t *testing.T) {
 	clk := clock.NewMock()
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector(Forecast, "set", "", WithClock(clk))
@@ -607,7 +608,7 @@ func TestCollectorSetEnergy(t *testing.T) {
 func TestCollectorFallsBackToPowerAfterCapabilityLoss(t *testing.T) {
 	clk := clock.NewMock() // 1970-01-01 00:00:00 UTC, on a slot boundary
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector(PV, "capability", "", WithClock(clk))
@@ -647,7 +648,7 @@ func TestCollectorFallsBackToPowerAfterCapabilityLoss(t *testing.T) {
 func TestCollectorClearsUnrestoredCheckpoint(t *testing.T) {
 	clk := clock.NewMock() // 1970-01-01 00:00:00 UTC, on a slot boundary
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector(Grid, "incomplete", "", WithClock(clk))
@@ -676,7 +677,7 @@ func TestCollectorClearsUnrestoredCheckpoint(t *testing.T) {
 func TestCollectorKeepsRestoreForSurvivingDirection(t *testing.T) {
 	clk := clock.NewMock() // 1970-01-01 00:00:00 UTC, on a slot boundary
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	col, err := NewCollector(Grid, "surviving", "", WithClock(clk))

@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDeleteEnergy(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	ePv := entity{Id: 2, Name: "pv1", Group: PV}
@@ -56,7 +57,7 @@ func TestDeleteEnergy(t *testing.T) {
 }
 
 func TestDeleteTariffs(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, db.Instance.AutoMigrate(new(tariffValue)))
 
 	base := time.Date(2026, 4, 15, 16, 0, 0, 0, time.UTC)

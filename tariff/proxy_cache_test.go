@@ -7,14 +7,14 @@ import (
 	"time"
 
 	"github.com/evcc-io/evcc/api"
-	"github.com/evcc-io/evcc/db"
 	"github.com/evcc-io/evcc/db/cache"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCachedFallback(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 
 	other := map[string]any{"interval": 50 * time.Millisecond}
 	key := "test-retry-" + cacheKey("test-retry", other)
@@ -61,7 +61,7 @@ func TestCachedFallback(t *testing.T) {
 }
 
 func TestCachedFallbackElapsed(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 
 	other := map[string]any{"interval": 60 * time.Millisecond}
 	key := "test-retry-" + cacheKey("test-retry", other)
@@ -91,7 +91,7 @@ func TestCachedFallbackElapsed(t *testing.T) {
 }
 
 func TestCachedFreshElapsed(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 
 	other := map[string]any{"interval": time.Hour}
 	key := "test-retry-" + cacheKey("test-retry", other)
@@ -125,7 +125,7 @@ func TestCachedFreshElapsed(t *testing.T) {
 }
 
 func TestCacheKeepsLeadingSlots(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 
 	now := time.Now().Truncate(SlotDuration)
 
@@ -145,7 +145,7 @@ func TestCacheKeepsLeadingSlots(t *testing.T) {
 }
 
 func TestCacheInterval(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 
 	p := &cachingProxy{key: "test", interval: time.Hour}
 	require.NoError(t, p.cachePut(api.TariffTypeSolar, api.Rates{

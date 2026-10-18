@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/evcc-io/evcc/tariff"
 	"github.com/jinzhu/now"
 	"github.com/stretchr/testify/require"
@@ -20,7 +21,8 @@ func persistDay(t *testing.T, e entity, start time.Time, n int, energy float64) 
 }
 
 func TestSetupSchemaLegacyMeters(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.SkipPostgres(t)
+	dbtest.NewInstance(t)
 	require.NoError(t, db.Instance.Create(&entity{Id: 2, Name: "pv1", Group: PV}).Error)
 
 	// replace the current table with the oldest layout: datetime ts, val/neg columns, obsolete index
@@ -58,7 +60,7 @@ func TestSetupSchemaLegacyMeters(t *testing.T) {
 }
 
 func TestEnergyProfileRecoveredFilter(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	e := entity{Id: 2, Name: "pv1", Group: PV}
@@ -91,7 +93,7 @@ func TestEnergyProfileRecoveredFilter(t *testing.T) {
 }
 
 func TestEnergyProfileTemperatureBinnedRecoveredFilter(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	e := entity{Id: 2, Name: "heater1", Group: Loadpoint}
@@ -118,7 +120,7 @@ func TestEnergyProfileTemperatureBinnedRecoveredFilter(t *testing.T) {
 }
 
 func TestQueryEnergyDayMonthBuckets(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	e := entity{Id: 2, Name: "pv1", Group: PV}
@@ -161,7 +163,7 @@ func TestQueryEnergyDayMonthBuckets(t *testing.T) {
 }
 
 func TestQueryTariffsDayMonthBuckets(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	for i, grid := range []float64{0.2, 0.4, 0.9} {
@@ -191,7 +193,7 @@ func TestQueryEnergyDST(t *testing.T) {
 		t.Skip("requires TZ=Europe/Berlin")
 	}
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	e := entity{Id: 2, Name: "pv1", Group: PV}

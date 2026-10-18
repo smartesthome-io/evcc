@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPersistTariffs(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, db.Instance.AutoMigrate(new(tariffValue)))
 
 	slot := time.Date(2026, 4, 15, 16, 15, 0, 0, time.UTC)
@@ -55,7 +56,7 @@ func TestPersistTariffs(t *testing.T) {
 }
 
 func TestQueryTariffs(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, db.Instance.AutoMigrate(new(tariffValue)))
 
 	slot := time.Date(2026, 4, 15, 16, 0, 0, 0, time.UTC)
