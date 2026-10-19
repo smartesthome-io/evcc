@@ -125,6 +125,8 @@ func (lp *Loadpoint) updateSession(opts ...sessionOption) {
 		opt(lp.session)
 	}
 
+	lp.publish(keys.SessionSocStart, lp.session.SocStart)
+
 	if !lp.session.Created.IsZero() {
 		lp.db.Persist(lp.session)
 	}
@@ -138,6 +140,7 @@ func (lp *Loadpoint) clearSession() {
 	}
 
 	lp.session = nil
+	lp.publish(keys.SessionSocStart, nil)
 }
 
 func (lp *Loadpoint) finalizeSessionEnergy() {

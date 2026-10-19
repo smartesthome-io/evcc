@@ -751,6 +751,8 @@ export interface Loadpoint {
   sessionCo2PerKWh: number | null;
   /** Energy charged in the current charging session in kWh. */
   sessionEnergy: number;
+  /** Vehicle SoC in % when the current session started. */
+  sessionSocStart: number | null;
   /** Total cost of the current charging session in the configured currency. */
   sessionPrice: number | null;
   /** Average energy price of the current charging session per kWh in the configured currency. */

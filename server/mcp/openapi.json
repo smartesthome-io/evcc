@@ -3932,6 +3932,11 @@
             "description": "Energy charged in the current charging session in kWh.",
             "type": "number"
           },
+          "sessionSocStart": {
+            "description": "Vehicle SoC in % when the current session started.",
+            "type": "number",
+            "nullable": true
+          },
           "sessionPrice": {
             "description": "Total cost of the current charging session in the configured currency.",
             "type": "number",
@@ -4112,6 +4117,7 @@
           "pvRemaining",
           "sessionCo2PerKWh",
           "sessionEnergy",
+          "sessionSocStart",
           "sessionPrice",
           "sessionPricePerKWh",
           "sessionSolarPercentage",

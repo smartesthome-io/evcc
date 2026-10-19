@@ -828,6 +828,7 @@ func (lp *Loadpoint) Prepare(site site.API, uiChan chan<- util.Param, pushChan c
 
 	// reset detection state
 	lp.publish(keys.VehicleDetectionActive, false)
+	lp.publish(keys.SessionSocStart, nil)
 
 	// restored settings
 	lp.publish(keys.PlanTime, lp.planTime)
@@ -2262,6 +2263,14 @@ func (lp *Loadpoint) publishSocAndRange() {
 		lp.vehicleSoc = *socR
 	}
 	lp.publish(keys.VehicleSoc, lp.vehicleSoc)
+
+	// the start soc is often unknown when charging starts, take the first one available during the session
+	if s := lp.session; s != nil && !s.Created.IsZero() && s.SocStart == nil && lp.vehicleSoc > 0 && !lp.chargerHasFeature(api.Heating) {
+		soc := lp.vehicleSoc
+		lp.updateSession(func(session *session.Session) {
+			session.SocStart = &soc
+		})
+	}
 
 	apiLimitSoc := 100
 	if limitR != nil {

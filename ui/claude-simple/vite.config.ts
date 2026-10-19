@@ -1,20 +1,21 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vite-plus";
 import vue from "@vitejs/plugin-vue";
 
-const backend = `http://127.0.0.1:${process.env.VITE_BACKEND_PORT || 7070}`;
+const backendUrl = `http://localhost:${Number(process.env["VITE_BACKEND_PORT"]) || 7070}`;
 
 export default defineConfig({
   plugins: [vue()],
   base: "./",
-  build: { outDir: "dist", emptyOutDir: true },
   server: {
-    port: Number(process.env.VITE_PORT || 7072),
+    port: Number(process.env["VITE_PORT"]) || 7073,
     proxy: {
-      "/api": backend,
-      "/i18n": backend,
-      "/providerauth": backend,
-      "/globals.js": backend,
-      "/ws": { target: backend, ws: true },
+      "/api": backendUrl,
+      "/i18n": backendUrl,
+      "/providerauth": backendUrl,
+      "/globals.js": backendUrl,
+      "/ws": { target: backendUrl.replace("http", "ws"), ws: true },
     },
   },
+  build: { outDir: "dist", emptyOutDir: true },
+  test: { environment: "node", include: ["src/**/*.test.ts"] },
 });
