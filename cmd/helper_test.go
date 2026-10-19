@@ -3,13 +3,13 @@ package cmd
 import (
 	"testing"
 
-	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/evcc-io/evcc/db/settings"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMigrateYaml(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 
 	const key = "foo"
 

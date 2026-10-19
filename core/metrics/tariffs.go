@@ -13,7 +13,7 @@ import (
 )
 
 type tariffValue struct {
-	Timestamp   int64    `gorm:"column:ts;uniqueIndex"` // 15min boundary
+	Timestamp   int64    `gorm:"column:ts;not null;uniqueIndex"` // 15min boundary
 	Grid        *float64 `gorm:"column:grid"`
 	FeedIn      *float64 `gorm:"column:feedin"`
 	Co2         *float64 `gorm:"column:co2"`
@@ -25,8 +25,15 @@ func (tariffValue) TableName() string {
 }
 
 func init() {
+	db.RegisterModels(new(tariffValue))
 	db.Register(func(_ *gorm.DB) error {
-		return db.Instance.AutoMigrate(new(tariffValue))
+		if err := db.Instance.AutoMigrate(new(tariffValue)); err != nil {
+			return err
+		}
+
+		db.EnableHypertable(db.Instance, "tariffs", "ts", hypertableChunk)
+
+		return nil
 	})
 }
 
@@ -125,7 +132,7 @@ func QueryTariffs(from, to time.Time, aggregate string) ([]TariffSlot, error) {
 		tx = tx.Select(`MIN(ts) AS ts,
 			AVG(grid) AS grid, MIN(grid) AS grid_min, MAX(grid) AS grid_max,
 			AVG(feedin) AS feed_in, MIN(feedin) AS feed_in_min, MAX(feedin) AS feed_in_max`).
-			Group(fmt.Sprintf(`strftime('%s', ts, 'unixepoch', 'localtime')`, format))
+			Group(db.LocalTime(db.Instance, "ts", format))
 	}
 
 	var res []TariffSlot

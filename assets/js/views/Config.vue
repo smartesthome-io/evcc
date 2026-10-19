@@ -1281,6 +1281,7 @@ export default defineComponent({
 		backupRestoreProps() {
 			return {
 				authDisabled: this.authDisabled,
+				databaseType: store.state?.databaseType,
 			};
 		},
 		circuitsRoot(): CircuitNode | undefined {

@@ -105,6 +105,14 @@ test-ui::
 test::
 	@echo "Running testsuite"
 	CGO_ENABLED=0 go test $(BUILD_TAGS) ./...
+	CGO_ENABLED=0 TZ=Europe/Berlin go test -count=1 $(BUILD_TAGS) ./core/metrics
+
+# requires EVCC_TEST_DB=postgres://...
+test-postgres::
+	@echo "Running database testsuite on PostgreSQL"
+	@test -n "$(EVCC_TEST_DB)" || (echo "EVCC_TEST_DB is not set" && exit 1)
+	CGO_ENABLED=0 go test -count=1 $(BUILD_TAGS) ./db/... ./core/... ./server/... ./cmd/... ./hems/... ./tariff/... ./ui/... ./util/...
+	CGO_ENABLED=0 TZ=Europe/Berlin go test -count=1 $(BUILD_TAGS) ./core/metrics
 
 porcelain::
 	gofmt -w -l $$(find . -name '*.go')

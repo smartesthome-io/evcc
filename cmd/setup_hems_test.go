@@ -5,6 +5,7 @@ import (
 
 	"github.com/evcc-io/evcc/core/keys"
 	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/evcc-io/evcc/db/settings"
 	"github.com/evcc-io/evcc/util/config"
 	"github.com/evcc-io/evcc/util/templates"
@@ -12,7 +13,7 @@ import (
 )
 
 func TestMigrateLegacyHemsSetting(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, db.Instance.AutoMigrate(&config.Config{}))
 
 	const legacyYaml = `type: relay
@@ -41,7 +42,7 @@ limit:
 }
 
 func TestMigrateLegacyHemsSetting_noop(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, db.Instance.AutoMigrate(&config.Config{}))
 
 	require.NoError(t, migrateLegacyHemsSetting())

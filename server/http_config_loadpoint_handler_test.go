@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/evcc-io/evcc/core/loadpoint"
-	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/evcc-io/evcc/util/config"
 	"github.com/evcc-io/evcc/util/templates"
 	"github.com/gorilla/mux"
@@ -47,7 +47,7 @@ func TestLoadpointConfigDisabledNilInstance(t *testing.T) {
 // TestDeleteLoadpointDisabledNilInstance ensures deleteLoadpointHandler does not
 // dereference a nil instance when deleting a disabled loadpoint.
 func TestDeleteLoadpointDisabledNilInstance(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 
 	conf, err := config.AddConfig(templates.Loadpoint,
 		map[string]any{"charger": "wallbox", "title": "Garage"},

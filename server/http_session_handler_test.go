@@ -9,11 +9,13 @@ import (
 
 	"github.com/evcc-io/evcc/core/session"
 	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSessionHandlerTimezoneFilter(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, db.Instance.AutoMigrate(new(session.Session)))
 
 	// Build in the process zone SQLite's 'localtime' uses (baked at startup).
@@ -33,4 +35,72 @@ func TestSessionHandlerTimezoneFilter(t *testing.T) {
 	var got session.Sessions
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
 	require.Len(t, got, 1)
+}
+
+func TestSessionHandlerFilter(t *testing.T) {
+	dbtest.NewInstance(t)
+	require.NoError(t, db.Instance.AutoMigrate(new(session.Session)))
+
+	for _, ts := range []struct {
+		created time.Time
+		energy  float64
+	}{
+		{time.Date(2025, 12, 31, 23, 30, 0, 0, time.Local), 1.0},
+		{time.Date(2026, 1, 1, 0, 30, 0, 0, time.Local), 2.0},
+		{time.Date(2026, 1, 15, 12, 0, 0, 0, time.Local), 0.04}, // below the 0.05 kWh cutoff
+		{time.Date(2026, 12, 1, 12, 0, 0, 0, time.Local), 3.0},
+	} {
+		require.NoError(t, db.Instance.Create(&session.Session{
+			Created:       ts.created,
+			Finished:      ts.created.Add(time.Hour),
+			ChargedEnergy: ts.energy,
+		}).Error)
+	}
+
+	energies := func(query string) []float64 {
+		rec := httptest.NewRecorder()
+		sessionHandler(rec, httptest.NewRequest(http.MethodGet, query, nil))
+		require.Equal(t, http.StatusOK, rec.Code)
+
+		var got session.Sessions
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+
+		res := make([]float64, 0, len(got))
+		for _, s := range got {
+			res = append(res, s.ChargedEnergy)
+		}
+		return res
+	}
+
+	// newest first
+	assert.Equal(t, []float64{3.0, 2.0, 1.0}, energies("/"), "cutoff excludes short sessions")
+	assert.Equal(t, []float64{3.0, 2.0}, energies("/?year=2026"))
+	assert.Equal(t, []float64{1.0}, energies("/?year=2025"))
+	assert.Equal(t, []float64{1.0}, energies("/?year=2025&month=12"))
+	assert.Equal(t, []float64{2.0}, energies("/?year=2026&month=1"), "month rollover")
+	assert.Equal(t, []float64{3.0}, energies("/?year=2026&month=12"))
+	assert.Empty(t, energies("/?year=2026&month=2"))
+}
+
+func TestSessionHandlerOrderIsStable(t *testing.T) {
+	dbtest.NewInstance(t)
+	require.NoError(t, db.Instance.AutoMigrate(new(session.Session)))
+
+	created := time.Date(2026, 5, 1, 12, 0, 0, 0, time.Local)
+	for _, loadpoint := range []string{"a", "b", "c"} {
+		require.NoError(t, db.Instance.Create(&session.Session{Loadpoint: loadpoint, Created: created, Finished: created.Add(time.Hour), ChargedEnergy: 1}).Error)
+	}
+
+	rec := httptest.NewRecorder()
+	sessionHandler(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var got session.Sessions
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+
+	var ids []uint
+	for _, s := range got {
+		ids = append(ids, s.ID)
+	}
+	assert.Equal(t, []uint{1, 2, 3}, ids, "same start time orders by id")
 }

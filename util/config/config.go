@@ -78,6 +78,7 @@ func (d *Config) Delete() error {
 }
 
 func init() {
+	db.RegisterModels(new(Config))
 	db.Register(func(db *gorm.DB) error {
 		return db.AutoMigrate(new(Config))
 	})

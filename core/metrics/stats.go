@@ -20,19 +20,14 @@ type EnergyStats struct {
 func energyStats(entity entity, slotStart, midnight time.Time) (EnergyStats, error) {
 	res := EnergyStats{slot: slotStart}
 
-	sqlDB, err := db.Instance.DB()
-	if err != nil {
-		return res, err
-	}
-
-	err = sqlDB.QueryRow(`SELECT
+	err := db.Instance.Raw(`SELECT
 		COALESCE(SUM(CASE WHEN ts >= ? THEN energy END), 0),
 		COALESCE(SUM(CASE WHEN ts >= ? THEN energy END), 0),
 		COALESCE(SUM(energy), 0)
 		FROM meters WHERE meter = ? AND ts >= ? AND ts < ?`,
 		midnight.Unix(), slotStart.Add(-24*time.Hour).Unix(),
 		entity.Id, slotStart.AddDate(0, 0, -7).Unix(), slotStart.Unix(),
-	).Scan(&res.Today, &res.Last24h, &res.Last7d)
+	).Row().Scan(&res.Today, &res.Last24h, &res.Last7d)
 
 	return res, err
 }

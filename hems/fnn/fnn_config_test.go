@@ -4,7 +4,7 @@ import (
 	"maps"
 	"testing"
 
-	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -12,7 +12,7 @@ import (
 // TestPowerParamFallback verifies productionnominalmax supersedes the
 // deprecated maxcurtailpower/maxpower params while both keep working.
 func TestPowerParamFallback(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 
 	w3 := map[string]any{"source": "const", "value": "true"}
 

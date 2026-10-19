@@ -6,6 +6,7 @@ import (
 
 	"github.com/evcc-io/evcc/core/keys"
 	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/evcc-io/evcc/db/settings"
 	"github.com/evcc-io/evcc/tariff"
 	"github.com/jinzhu/now"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestEnergyProfileWeekday(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	e := entity{Id: 2, Name: "pv1", Group: PV}
@@ -46,7 +47,7 @@ func TestEnergyProfileWeekday(t *testing.T) {
 }
 
 func TestEnergyProfileTemperatureBinned(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	e := entity{Id: 3, Name: "heater1", Group: Loadpoint}

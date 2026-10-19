@@ -326,8 +326,10 @@ export interface State {
   authDisabled?: boolean;
   /** Path of the evcc configuration file. */
   config?: string;
-  /** Path of the evcc database. */
+  /** Location of the evcc database, a file path or host and name. */
   database?: string;
+  /** Type of the evcc database. */
+  databaseType?: "sqlite" | "postgres";
   /** OCPP server configuration and connected stations. */
   ocpp?: Ocpp;
   /** OCPP forwarder rules and upstream connection status. */

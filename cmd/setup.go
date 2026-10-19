@@ -120,7 +120,7 @@ func loadConfigFile(conf *globalconfig.All, checkDB bool) error {
 	}
 
 	// user did not specify a database path
-	if conf.Database.Dsn == "" && checkDB {
+	if conf.Database.Dsn == "" && conf.Database.Type != db.Postgres && checkDB {
 		// check if service database exists
 		if _, err := os.Stat(serviceDB); err == nil {
 			// service database found, ask user what to do
@@ -720,13 +720,28 @@ func configureEnvironment(cmd *cobra.Command, conf *globalconfig.All) error {
 	return err
 }
 
-// configureDatabase configures session database
-func configureDatabase(conf globalconfig.DB) error {
+// databaseTarget returns the database type and dsn of the configuration
+func databaseTarget(conf globalconfig.DB) (string, string, error) {
+	typ := db.DriverFromDSN(strings.ToLower(conf.Type), conf.Dsn)
+
 	if conf.Dsn == "" {
-		conf.Dsn = userDB
+		if typ == db.Postgres {
+			return "", "", errors.New("missing database dsn for postgres")
+		}
+		return typ, userDB, nil
 	}
 
-	if err := db.NewInstance(conf.Type, conf.Dsn); err != nil {
+	return typ, conf.Dsn, nil
+}
+
+// configureDatabase configures session database
+func configureDatabase(conf globalconfig.DB) error {
+	typ, dsn, err := databaseTarget(conf)
+	if err != nil {
+		return err
+	}
+
+	if err := db.NewInstance(typ, dsn); err != nil {
 		return err
 	}
 

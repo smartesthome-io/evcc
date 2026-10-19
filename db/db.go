@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -9,28 +10,66 @@ import (
 	"strings"
 
 	"github.com/evcc-io/evcc/util"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/libtnb/sqlite"
 	"github.com/mitchellh/go-homedir"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	sqlite3 "modernc.org/sqlite"
 	sqlite3lib "modernc.org/sqlite/lib"
 )
 
+const (
+	SQLite   = "sqlite"
+	Postgres = "postgres"
+
+	// ApplicationName identifies evcc connections on the PostgreSQL server
+	ApplicationName = "evcc"
+)
+
 var (
 	Instance *gorm.DB
 	filePath string // Store the actual SQLite file path
+	location string // Human readable server location of a network database
 )
 
 func FilePath() string {
 	return filePath
 }
 
+// Location describes where the database lives, without credentials
+func Location() string {
+	if filePath != "" {
+		return filePath
+	}
+	return location
+}
+
+// Dialect returns the database type of the connection
+func Dialect(conn *gorm.DB) string {
+	if conn == nil {
+		return ""
+	}
+	return conn.Dialector.Name()
+}
+
+// DriverFromDSN returns the driver for a dsn that unambiguously names one, otherwise the given driver
+func DriverFromDSN(driver, dsn string) string {
+	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
+		return Postgres
+	}
+	return driver
+}
+
 func New(driver, dsn string) (*gorm.DB, error) {
 	var dialect gorm.Dialector
+	var pgDB *sql.DB
 	var memory bool
 
 	switch driver {
-	case "sqlite":
+	case SQLite:
 		// Split database path and connection parameters
 		dbPath, params, _ := strings.Cut(dsn, "?")
 
@@ -46,7 +85,7 @@ func New(driver, dsn string) (*gorm.DB, error) {
 		}
 
 		// Store the expanded file path for later use
-		filePath = file
+		filePath, location = file, ""
 
 		// WAL with synchronous NORMAL syncs to disk on checkpoint instead of every commit,
 		// a power loss may drop the latest commits but cannot corrupt the database.
@@ -76,19 +115,45 @@ func New(driver, dsn string) (*gorm.DB, error) {
 		util.NewLogger("main").INFO.Println("using sqlite database:", connectionStr)
 
 		dialect = sqlite.Open(connectionStr)
-	// case "postgres":
-	// 	dialect = postgres.Open(dsn)
-	// case "mysql":
-	// 	dialect = mysql.Open(dsn)
+
+	case Postgres:
+		// parsing redacts the password in its errors
+		cfg, err := pgx.ParseConfig(dsn)
+		if err != nil {
+			return nil, fmt.Errorf("invalid postgres dsn: %w", err)
+		}
+
+		if _, ok := cfg.RuntimeParams["application_name"]; !ok {
+			cfg.RuntimeParams["application_name"] = ApplicationName
+		}
+
+		filePath = ""
+		location = fmt.Sprintf("%s:%d/%s", cfg.Host, cfg.Port, cfg.Database)
+
+		util.NewLogger("main").INFO.Println("using postgres database:", location)
+
+		pgDB = stdlib.OpenDB(*cfg)
+		dialect = postgres.New(postgres.Config{Conn: pgDB})
 	default:
-		return nil, fmt.Errorf("invalid database type: %s not in [sqlite]", driver)
+		return nil, fmt.Errorf("invalid database type: %s not in [%s, %s]", driver, SQLite, Postgres)
 	}
 
 	db, err := gorm.Open(dialect, &gorm.Config{
 		Logger: &Logger{util.NewLogger("db")},
 	})
 	if err != nil {
+		if pgDB != nil {
+			_ = pgDB.Close()
+			return nil, fmt.Errorf("connect to postgres: %w", err)
+		}
 		return nil, err
+	}
+
+	if driver == Postgres {
+		if err := checkZone(db); err != nil {
+			_ = pgDB.Close()
+			return nil, err
+		}
 	}
 
 	// WAL lets readers run alongside the single writer. In-memory databases
@@ -128,11 +193,16 @@ func Close() error {
 	return db.Close()
 }
 
-// IsReadonly reports whether err indicates a database file that is not
+// IsReadonly reports whether err indicates a database that is not
 // writable by the current user. The code mask covers extended result codes.
 func IsReadonly(err error) bool {
-	var serr *sqlite3.Error
-	return errors.As(err, &serr) && serr.Code()&0xff == sqlite3lib.SQLITE_READONLY
+	if serr, ok := errors.AsType[*sqlite3.Error](err); ok {
+		return serr.Code()&0xff == sqlite3lib.SQLITE_READONLY
+	}
+
+	// read_only_sql_transaction
+	perr, ok := errors.AsType[*pgconn.PgError](err)
+	return ok && perr.Code == "25006"
 }
 
 type backuper interface {
@@ -181,4 +251,10 @@ func Restore(ctx context.Context, target string) error {
 	return runWithBackuper(ctx, func(conn backuper) (*sqlite3.Backup, error) {
 		return conn.NewRestore(target)
 	})
+}
+
+// SQLitePath returns the database file of a SQLite dsn
+func SQLitePath(dsn string) (string, error) {
+	path, _, _ := strings.Cut(dsn, "?")
+	return homedir.Expand(path)
 }

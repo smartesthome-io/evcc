@@ -1006,6 +1006,8 @@
         "cancel": "Abbrechen",
         "description": "Sichern, wiederherstellen und zurücksetzen deiner Daten. Nützlich, wenn du deine Daten auf ein anderes System übertragen möchtest.",
         "note": "Hinweis: Alle oben genannten Aktionen betreffen nur deine Datenbankdaten. Die evcc.yaml-Konfigurationsdatei bleibt unverändert.",
+        "postgresDocs": "Dokumentation",
+        "postgresNote": "Deine Daten liegen in PostgreSQL. Sichere sie auf der Kommandozeile mit \"evcc db backup\" und stelle sie mit \"evcc db restore\" wieder her. Beim Zurücksetzen wird keine lokale Sicherung angelegt.",
         "reset": {
           "action": "Zurücksetzen...",
           "confirmationButton": "Zurücksetzen & Neustart",

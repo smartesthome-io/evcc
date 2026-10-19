@@ -71,17 +71,16 @@ func sessionHandler(w http.ResponseWriter, r *http.Request) {
 	filename := "session"
 	if year := r.URL.Query().Get("year"); year != "" {
 		filename += "-" + year
-		push("STRFTIME('%Y', created, 'localtime') LIKE ?", year)
+		push(db.LocalTimestamp(db.Instance, "created", "%Y")+" LIKE ?", year)
 
 		if month := fmt.Sprintf("%02s", r.URL.Query().Get("month")); month != "00" {
 			filename += "-" + month
-			push("STRFTIME('%m', created, 'localtime') LIKE ?", month)
+			push(db.LocalTimestamp(db.Instance, "created", "%m")+" LIKE ?", month)
 		}
 	}
 
-	// TODO support other databases than Sqlite
 	query := strings.Join(append([]string{"charged_kwh>=0.05"}, cond...), " AND ")
-	if txn := db.Instance.Where(query, args...).Order("created DESC").Find(&res); txn.Error != nil {
+	if txn := db.Instance.Where(query, args...).Order("created DESC, id").Find(&res); txn.Error != nil {
 		jsonError(w, http.StatusInternalServerError, txn.Error)
 		return
 	}

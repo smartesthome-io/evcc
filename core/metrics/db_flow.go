@@ -92,7 +92,7 @@ func QueryFlow(from, to time.Time) (FlowResult, error) {
 		Joins("JOIN entities e ON m.meter = e.id").
 		Joins("LEFT JOIN tariffs t ON t.ts = m.ts").
 		Where(`e."group" IN ?`, []string{PV, Grid, Battery, Home, Loadpoint}).
-		Group("m.ts")
+		Group("m.ts, t.grid, t.feedin, t.co2")
 
 	if !from.IsZero() {
 		tx = tx.Where("m.ts >= ?", from.Unix())

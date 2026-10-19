@@ -1,0 +1,17 @@
+[Unit]
+Description=Back up the evcc database
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=evcc
+Group=evcc
+UMask=0077
+StateDirectory=evcc-backup
+Environment=BACKUP_DIR=/var/lib/evcc-backup
+Environment=KEEP=14
+# contains EVCC_DATABASE_DSN=postgres://user:password@host:5432/evcc, readable for root only (mode 0600).
+# Alternatively the database settings of /etc/evcc.yaml are used.
+EnvironmentFile=-/etc/evcc-backup.env
+ExecStart=/usr/local/bin/evcc-backup.sh

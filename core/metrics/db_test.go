@@ -7,14 +7,16 @@ import (
 
 	"github.com/benbjohnson/clock"
 	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSqliteTimestamp(t *testing.T) {
+	dbtest.SkipPostgres(t)
 	clock := clock.NewMock()
 	clock.Add(time.Hour)
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	entity := entity{Name: "foo"}
@@ -45,7 +47,7 @@ func TestSqliteTimestamp(t *testing.T) {
 }
 
 func TestQueryEnergyUTCFilter(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	e := entity{Name: Grid, Group: Grid}
@@ -71,7 +73,7 @@ func TestQueryEnergyUTCFilter(t *testing.T) {
 }
 
 func TestQueryEnergyGrouped(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	// two entities sharing the same group, different names
@@ -108,7 +110,7 @@ func TestQueryEnergyGrouped(t *testing.T) {
 }
 
 func TestQueryEnergyMultipleSeries(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	// 3 entities across 2 groups
@@ -173,7 +175,7 @@ func TestQueryEnergyMultipleSeries(t *testing.T) {
 }
 
 func TestQueryEnergyFilter(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	eGrid := entity{Id: 2, Name: Grid, Group: Grid}
@@ -227,7 +229,7 @@ func TestUpdateProfile(t *testing.T) {
 	_, o := clock.Now().Zone()
 	clock.Add(-time.Duration(o) * time.Second)
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	entity := entity{Id: 2, Name: "foo"}
@@ -286,7 +288,7 @@ func TestEnergyProfilePercentile(t *testing.T) {
 	_, o := clock.Now().Zone()
 	clock.Add(-time.Duration(o) * time.Second)
 
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 	require.NoError(t, SetupSchema())
 
 	entity := entity{Id: 2, Name: "foo"}
@@ -318,7 +320,8 @@ func TestEnergyProfilePercentile(t *testing.T) {
 }
 
 func TestTimeMigration(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.SkipPostgres(t)
+	dbtest.NewInstance(t)
 	mig := db.Instance.Migrator()
 
 	require.NoError(t, db.Instance.AutoMigrate(new(entity)))

@@ -8,6 +8,7 @@ import (
 )
 
 func init() {
+	db.RegisterModels(new(GridSession))
 	db.Register(func(db *gorm.DB) error {
 		return db.AutoMigrate(new(GridSession))
 	})

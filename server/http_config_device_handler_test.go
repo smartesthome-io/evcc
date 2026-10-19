@@ -8,7 +8,7 @@ import (
 
 	"github.com/evcc-io/evcc/api"
 	"github.com/evcc-io/evcc/core/site"
-	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/evcc-io/evcc/util/config"
 	"github.com/evcc-io/evcc/util/templates"
 	"github.com/gorilla/mux"
@@ -50,7 +50,7 @@ func TestDeleteCircuitMeter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+			dbtest.NewInstance(t)
 			config.Reset()
 
 			meterConfig, err := config.AddConfig(templates.Meter, map[string]any{"type": "custom"})

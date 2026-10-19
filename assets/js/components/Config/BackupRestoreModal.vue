@@ -11,7 +11,14 @@
 				<span>{{ $t("config.system.backupRestore.description") }}</span>
 			</p>
 
-			<div class="mb-3">
+			<p v-if="isPostgres" data-testid="backup-restore-postgres-note">
+				{{ $t("config.system.backupRestore.postgresNote") }}
+				<a :href="docsUrl" target="_blank" rel="noopener">
+					{{ $t("config.system.backupRestore.postgresDocs") }}
+				</a>
+			</p>
+
+			<div v-if="!isPostgres" class="mb-3">
 				<h6>
 					{{ $t("config.system.backupRestore.backup.title") }}
 				</h6>
@@ -27,7 +34,7 @@
 					{{ $t("config.system.backupRestore.backup.action") }}
 				</button>
 			</div>
-			<div class="mb-3">
+			<div v-if="!isPostgres" class="mb-3">
 				<h6>
 					{{ $t("config.system.backupRestore.restore.title") }}
 				</h6>
@@ -206,6 +213,7 @@ export default defineComponent({
 	components: { GenericModal, PropertyFileField, FormRow, PasswordInput },
 	props: {
 		authDisabled: Boolean,
+		databaseType: String,
 	},
 	data() {
 		return {
@@ -227,6 +235,12 @@ export default defineComponent({
 	computed: {
 		restarting() {
 			return restart.restarting;
+		},
+		isPostgres() {
+			return this.databaseType === "postgres";
+		},
+		docsUrl() {
+			return "https://docs.evcc.io/docs/reference/configuration/database";
 		},
 	},
 	watch: {

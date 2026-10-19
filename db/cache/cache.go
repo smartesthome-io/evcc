@@ -18,6 +18,7 @@ type Cache struct {
 }
 
 func init() {
+	db.RegisterModels(new(Cache))
 	db.Register(func(db *gorm.DB) error {
 		return db.AutoMigrate(new(Cache))
 	})

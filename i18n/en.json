@@ -1006,6 +1006,8 @@
         "cancel": "Cancel",
         "description": "Backup, restore and reset your data. Useful if you want to move your data to another system.",
         "note": "Note: All above actions only affect your database data. The evcc.yaml configuration file remains unchanged.",
+        "postgresDocs": "Documentation",
+        "postgresNote": "Your data is stored in PostgreSQL. Back it up with \"evcc db backup\" and restore it with \"evcc db restore\" on the command line. Reset does not create a local backup.",
         "reset": {
           "action": "Reset...",
           "confirmationButton": "Reset & restart",

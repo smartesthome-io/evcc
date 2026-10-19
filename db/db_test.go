@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"os"
 	"testing"
 	"time"
@@ -46,6 +47,12 @@ func TestUnitNewDriver(t *testing.T) {
 			name:    "Unsupported Driver",
 			driver:  "postgresql",
 			dsn:     "/var/lib/evcc/evcc.db",
+			wantErr: true,
+		},
+		{
+			name:    "Postgres invalid dsn",
+			driver:  "postgres",
+			dsn:     "postgres://user:secret@host:notaport/db",
 			wantErr: true,
 		},
 	}
@@ -182,4 +189,68 @@ func TestUnitMigrateConstraint(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("AutoMigrate deadlocked")
 	}
+}
+
+func TestUnitIsReadonly(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("file permissions do not apply to root")
+	}
+
+	path := t.TempDir() + "/evcc.db"
+
+	rw, err := New("sqlite", path)
+	require.NoError(t, err)
+	require.NoError(t, rw.Exec("CREATE TABLE t (v integer)").Error)
+	sqlDB, err := rw.DB()
+	require.NoError(t, err)
+	require.NoError(t, sqlDB.Close())
+
+	require.NoError(t, os.Chmod(path, 0o400))
+
+	ro, err := New("sqlite", path)
+	if err == nil {
+		err = ro.Exec("INSERT INTO t VALUES (1)").Error
+	}
+	require.Error(t, err)
+	assert.True(t, IsReadonly(err), "got %v", err)
+
+	assert.False(t, IsReadonly(errors.New("other")))
+	assert.False(t, IsReadonly(nil))
+}
+
+func TestUnitDriverFromDSN(t *testing.T) {
+	for dsn, want := range map[string]string{
+		"":                              "sqlite",
+		"~/.evcc/evcc.db":               "sqlite",
+		":memory:":                      "sqlite",
+		"postgres://u:p@localhost/evcc": "postgres",
+		"postgresql://u:p@localhost/db": "postgres",
+		"host=localhost user=evcc":      "sqlite",
+		"/var/lib/postgres://evcc.db":   "sqlite",
+	} {
+		assert.Equal(t, want, DriverFromDSN("sqlite", dsn), dsn)
+	}
+
+	assert.Equal(t, "postgres", DriverFromDSN("postgres", ""))
+}
+
+// TestUnitPostgresErrorsHidePassword verifies that connection problems do not leak credentials
+func TestUnitPostgresErrorsHidePassword(t *testing.T) {
+	for _, dsn := range []string{
+		"postgres://user:secret@host:notaport/db",
+		"postgres://user:secret@127.0.0.1:1/db?sslmode=disable&connect_timeout=1",
+	} {
+		conn, err := New("postgres", dsn)
+		require.Error(t, err)
+		assert.Nil(t, conn)
+		assert.NotContains(t, err.Error(), "secret", dsn)
+	}
+}
+
+func TestUnitDialect(t *testing.T) {
+	conn, err := New("sqlite", ":memory:")
+	require.NoError(t, err)
+
+	assert.Equal(t, SQLite, Dialect(conn))
+	assert.Empty(t, Dialect(nil))
 }

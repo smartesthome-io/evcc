@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/evcc-io/evcc/core/site"
-	"github.com/evcc-io/evcc/db"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/evcc-io/evcc/hems/hems"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,7 +24,7 @@ func boolG(v bool) func() (bool, error) {
 // TestCurtailmentNotConfigured verifies that without W3 no curtailment
 // statement is made, while dimming via W4 remains available.
 func TestCurtailmentNotConfigured(t *testing.T) {
-	require.NoError(t, db.NewInstance("sqlite", ":memory:"))
+	dbtest.NewInstance(t)
 
 	fnn, err := NewFnn(&stubSite{}, 1e3, 1e3, nil, nil, nil, boolG(true), 0)
 	require.NoError(t, err)

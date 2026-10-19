@@ -5936,8 +5936,16 @@
             "type": "string"
           },
           "database": {
-            "description": "Path of the evcc database.",
+            "description": "Location of the evcc database, a file path or host and name.",
             "type": "string"
+          },
+          "databaseType": {
+            "description": "Type of the evcc database.",
+            "type": "string",
+            "enum": [
+              "sqlite",
+              "postgres"
+            ]
           },
           "ocpp": {
             "$ref": "#/components/schemas/Ocpp",

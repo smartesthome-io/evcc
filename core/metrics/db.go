@@ -11,9 +11,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// hypertableChunk is the time range of a TimescaleDB chunk
+const hypertableChunk = 30 * 24 * time.Hour
+
 type meter struct {
 	Meter        int      `json:"meter" gorm:"column:meter;uniqueIndex:meters_meter_ts"`
-	Timestamp    int64    `json:"ts" gorm:"column:ts;uniqueIndex:meters_meter_ts"` // start of 15min slot
+	Timestamp    int64    `json:"ts" gorm:"column:ts;not null;uniqueIndex:meters_meter_ts"` // start of 15min slot
 	Entity       entity   `json:"-" gorm:"foreignkey:Meter;references:Id"`
 	Energy       float64  `json:"energy" gorm:"column:energy"`
 	ReturnEnergy float64  `json:"returnEnergy" gorm:"column:return_energy"`
@@ -32,6 +35,7 @@ type entity struct {
 }
 
 func init() {
+	db.RegisterModels(new(entity), new(meter))
 	db.Register(func(_ *gorm.DB) error {
 		return SetupSchema()
 	})
@@ -56,9 +60,13 @@ func SetupSchema() error {
 		return err
 	}
 
+	sqlite := db.Dialect(db.Instance) == db.SQLite
+
 	// enable FK constraints only here to make sure entity for metric exists
-	if err := db.Instance.Exec("pragma foreign_keys(1)").Error; err != nil {
-		return err
+	if sqlite {
+		if err := db.Instance.Exec("pragma foreign_keys(1)").Error; err != nil {
+			return err
+		}
 	}
 
 	// drop obsolete indexes
@@ -106,7 +114,7 @@ func SetupSchema() error {
 	}
 
 	// meter: ts migration
-	if m.HasTable(new(meter)) {
+	if sqlite && m.HasTable(new(meter)) {
 		types, err := m.ColumnTypes(new(meter))
 		if err != nil {
 			return err
@@ -130,7 +138,13 @@ func SetupSchema() error {
 		}
 	}
 
-	return db.Instance.AutoMigrate(new(meter))
+	if err := db.Instance.AutoMigrate(new(meter)); err != nil {
+		return err
+	}
+
+	db.EnableHypertable(db.Instance, "meters", "ts", hypertableChunk)
+
+	return nil
 }
 
 // OnPersist, if set, is called with the slot start after a slot is written.

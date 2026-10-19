@@ -7,6 +7,7 @@ import (
 	"github.com/evcc-io/evcc/api"
 	"github.com/evcc-io/evcc/core/loadpoint"
 	"github.com/evcc-io/evcc/core/types"
+	"github.com/evcc-io/evcc/db/dbtest"
 	"github.com/evcc-io/evcc/tariff"
 	"github.com/evcc-io/evcc/util"
 	"github.com/evcc-io/evcc/util/config"
@@ -681,6 +682,7 @@ func TestGridExportLimit(t *testing.T) {
 }
 
 func TestProfilePercentile(t *testing.T) {
+	dbtest.NewInstance(t)
 	site := &Site{log: util.NewLogger("foo")}
 
 	// average by default
