@@ -1,12 +1,14 @@
 package charger
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/evcc-io/evcc/api"
+	"github.com/evcc-io/evcc/core/loadpoint"
 	"github.com/evcc-io/evcc/util/request"
 	"github.com/stretchr/testify/require"
 )
@@ -59,5 +61,83 @@ func TestAsleepTeslaMate(t *testing.T) {
 		statusErr(t, http.StatusRequestTimeout, "vehicle unavailable"),
 	} {
 		require.Same(t, err, asleep(err))
+	}
+}
+
+type statusLoadpoint struct {
+	loadpoint.API
+	vehicle api.Vehicle
+}
+
+func (lp *statusLoadpoint) GetVehicle() api.Vehicle { return lp.vehicle }
+
+type statusVehicle struct {
+	api.Vehicle
+	status api.ChargeStatus
+	err    error
+}
+
+func (v *statusVehicle) Status() (api.ChargeStatus, error) { return v.status, v.err }
+
+func TestVehicleApiStatus(t *testing.T) {
+	boom := errors.New("boom")
+
+	type step struct {
+		status  api.ChargeStatus
+		err     error
+		want    api.ChargeStatus
+		wantErr bool
+	}
+
+	tc := []struct {
+		name  string
+		steps []step
+	}{
+		{"asleep at startup is connected", []step{
+			{err: api.ErrAsleep, want: api.StatusB},
+		}},
+		{"asleep keeps connected", []step{
+			{status: api.StatusB, want: api.StatusB},
+			{err: api.ErrAsleep, want: api.StatusB},
+		}},
+		{"asleep keeps charging", []step{
+			{status: api.StatusC, want: api.StatusC},
+			{err: api.ErrAsleep, want: api.StatusC},
+		}},
+		{"asleep keeps disconnected", []step{
+			{status: api.StatusA, want: api.StatusA},
+			{err: api.ErrAsleep, want: api.StatusA},
+		}},
+		{"error is no disconnect", []step{
+			{status: api.StatusB, want: api.StatusB},
+			{err: boom, wantErr: true},
+			{err: api.ErrNotAvailable, wantErr: true},
+		}},
+		{"explicit disconnect", []step{
+			{status: api.StatusB, want: api.StatusB},
+			{status: api.StatusA, want: api.StatusA},
+			{status: api.StatusB, want: api.StatusB},
+		}},
+	}
+
+	for _, tc := range tc {
+		t.Run(tc.name, func(t *testing.T) {
+			v := &statusVehicle{}
+			c := &VehicleApi{lp: &statusLoadpoint{vehicle: v}}
+
+			for i, st := range tc.steps {
+				v.status, v.err = st.status, st.err
+
+				got, err := c.Status()
+				if st.wantErr {
+					require.Error(t, err, "step %d", i)
+					require.NotEqual(t, api.StatusA, got, "step %d", i)
+					continue
+				}
+
+				require.NoError(t, err, "step %d", i)
+				require.Equal(t, st.want, got, "step %d", i)
+			}
+		})
 	}
 }

@@ -19,6 +19,7 @@ import (
 type VehicleApi struct {
 	lp                     loadpoint.API
 	enabled                bool
+	lastStatus             api.ChargeStatus
 	geofenceEnabled        bool
 	lat, lon, radius       float64
 	cacheRefreshExpectedAt time.Time
@@ -96,7 +97,8 @@ func (c *VehicleApi) isVehicleAtHome(vehicle api.Vehicle) (bool, error) {
 	return c.distance(lat, lon) <= c.radius, nil
 }
 
-// Status implements the api.Charger interface
+// Status implements the api.Charger interface.
+// Errors and a sleeping vehicle never change the status, disconnected requires a valid vehicle response.
 func (c *VehicleApi) Status() (api.ChargeStatus, error) {
 	if c.lp == nil {
 		return api.StatusA, nil
@@ -110,12 +112,7 @@ func (c *VehicleApi) Status() (api.ChargeStatus, error) {
 	// Check if vehicle is at the charger (trying to use geofencing)
 	atHome, err := c.isVehicleAtHome(vehicle)
 	if err != nil {
-		// position unknown while asleep: report connected so the loadpoint wakes the
-		// vehicle, the geofence is re-evaluated once it responds again
-		if errors.Is(err, api.ErrAsleep) {
-			return api.StatusB, nil
-		}
-		return api.StatusA, err
+		return c.statusOnError(err)
 	}
 
 	if !c.cacheRefreshExpectedAt.IsZero() {
@@ -132,23 +129,36 @@ func (c *VehicleApi) Status() (api.ChargeStatus, error) {
 
 	v, ok := api.Cap[api.ChargeState](vehicle)
 	if !ok {
-		return api.StatusA, errors.New("vehicle not capable of reporting charging status")
+		return api.StatusNone, errors.New("vehicle not capable of reporting charging status")
 	}
 
 	status, err := v.Status()
 	if err != nil {
-		// asleep: report connected so the loadpoint's setLimit path can wake the vehicle
-		if errors.Is(asleep(err), api.ErrAsleep) {
-			return api.StatusB, nil
-		}
+		return c.statusOnError(err)
+	}
+
+	if !atHome {
+		status = api.StatusA
+	}
+
+	c.lastStatus = status
+
+	return status, nil
+}
+
+// statusOnError keeps the last known status while the vehicle is asleep. Other errors are passed on
+// and leave the status untouched. Without a known status a sleeping vehicle is reported as connected
+// so the loadpoint can wake it.
+func (c *VehicleApi) statusOnError(err error) (api.ChargeStatus, error) {
+	if !errors.Is(asleep(err), api.ErrAsleep) {
 		return api.StatusNone, err
 	}
 
-	if status == api.StatusA || !atHome {
-		return api.StatusA, nil
+	if c.lastStatus != api.StatusNone {
+		return c.lastStatus, nil
 	}
 
-	return status, nil
+	return api.StatusB, nil
 }
 
 // Enabled implements the api.Charger interface

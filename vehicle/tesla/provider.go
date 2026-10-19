@@ -36,22 +36,24 @@ func (v *Provider) Soc() (float64, error) {
 
 var _ api.ChargeState = (*Provider)(nil)
 
-// Status implements the api.ChargeState interface
+// Status implements the api.ChargeState interface.
+// Disconnected is only reported for an explicit Disconnected state, unknown states are an error.
 func (v *Provider) Status() (api.ChargeStatus, error) {
-	status := api.StatusA // disconnected
 	res, err := v.dataG()
 	if err != nil {
-		return status, err
+		return api.StatusNone, err
 	}
 
 	switch res.Response.ChargeState.ChargingState {
-	case "Stopped", "NoPower", "Complete":
-		status = api.StatusB
+	case "Disconnected":
+		return api.StatusA, nil
+	case "Stopped", "NoPower", "Complete", "Starting":
+		return api.StatusB, nil
 	case "Charging":
-		status = api.StatusC
+		return api.StatusC, nil
+	default:
+		return api.StatusNone, api.ErrNotAvailable
 	}
-
-	return status, nil
 }
 
 var _ api.ChargeRater = (*Provider)(nil)

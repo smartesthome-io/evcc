@@ -13,6 +13,8 @@ requirements:
       The charger requires a vehicle that supports charge control (start/stop charging) and the ability to report the charging status.
       If the vehicle supports position tracking, this can be used for geofencing.
       When geofencing is enabled, the evcc will only affect charging behavior when the vehicle is within the specified radius of the home coordinates.
+
+      A sleeping vehicle or an api error keeps the last known state. Disconnected is only reported when the vehicle explicitly says so.
     de: |
       Eine Charger Implementierung, welche das Fahrzeug API für die Steuerung nutzt, anstatt den Charger direkt zu steuern.
       Dies ist nützlich für "Granny-Charger" oder einfache Charger, die nicht gesteuert werden können.
@@ -21,6 +23,8 @@ requirements:
 
       Wenn das Fahrzeug die Positionsverfolgung unterstützt, kann dies für Geofencing verwendet werden.
       Wenn Geofencing aktiviert ist, wird evcc nur eingreifen, wenn sich das Fahrzeug innerhalb des angegebenen Radius des Standortes befindet.
+
+      Ein schlafendes Fahrzeug oder ein API-Fehler behält den letzten bekannten Zustand bei. "Getrennt" wird nur gemeldet, wenn das Fahrzeug es ausdrücklich meldet.
 params:
   - name: geofence_enabled
     description:
