@@ -57,3 +57,7 @@ asset-stats.html
 *storybook.log
 /graphify-out/
 .graphifyignore
+
+# ui flavors
+ui/*/dist
+ui/*/node_modules

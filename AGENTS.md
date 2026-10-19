@@ -43,6 +43,7 @@ Deep documentation on specific subsystems is available in `docs/agents/`. Load w
 | [Chart Conventions](docs/agents/charts.md)                    | ECharts charts: axis units and scale rules, tooltips, layout                 |
 | [Energy Analytics](docs/agents/energy-analytics.md)           | Energy page metrics: attribution, cost/CO2, forecast accuracy, missing data  |
 | [Discovery Hints](docs/agents/discovery-hints.md)             | Vendor registry update, adding and reviewing template `discovery` hints      |
+| [UI Flavors](docs/agents/ui-flavors.md)                       | Alternative UIs via `--ui-dir`, flavor contract, building flavor images      |
 
 ### Loading guide by task type
 

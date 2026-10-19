@@ -20,6 +20,7 @@ import (
 	"github.com/evcc-io/evcc/hems/hems"
 	"github.com/evcc-io/evcc/messenger"
 	"github.com/evcc-io/evcc/server"
+	"github.com/evcc-io/evcc/server/assets"
 	"github.com/evcc-io/evcc/server/eebus"
 	"github.com/evcc-io/evcc/server/mcp"
 	"github.com/evcc-io/evcc/server/network"
@@ -105,6 +106,8 @@ func init() {
 	rootCmd.Flags().Bool(flagDisableAuth, false, flagDisableAuthDescription)
 	rootCmd.Flags().Bool(flagDemoMode, false, flagDemoModeDescription)
 
+	rootCmd.Flags().String(flagUIDir, os.Getenv("EVCC_UI_DIR"), flagUIDirDescription)
+
 	// UI customization, flags default to environment variables
 	rootCmd.Flags().StringVar(&customization.Css, flagCustomCss, os.Getenv("EVCC_CUSTOM_CSS"), flagCustomCssDescription)
 	rootCmd.Flags().StringVar(&customization.LogoLight, flagCustomLogoLight, os.Getenv("EVCC_CUSTOM_LOGO_LIGHT"), flagCustomLogoLightDescription)
@@ -179,6 +182,13 @@ func runRoot(cmd *cobra.Command, args []string) {
 
 	// print version
 	log.INFO.Printf("evcc %s", util.FormattedVersion())
+
+	if dir, _ := cmd.Flags().GetString(flagUIDir); dir != "" {
+		if err := assets.UseWebDir(dir); err != nil {
+			log.FATAL.Fatal(err)
+		}
+		log.INFO.Printf("serving ui from %s", dir)
+	}
 
 	// load config and re-configure logging after reading config file
 	var err error

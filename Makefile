@@ -193,3 +193,6 @@ patch-asn1::
 upgrade::
 	$(shell go list -u -f '{{if (and (not (or .Main .Indirect)) .Update)}}{{.Path}}{{end}}' -m all | xargs go get)
 	go mod tidy
+
+# fork-only targets
+-include fork.mk

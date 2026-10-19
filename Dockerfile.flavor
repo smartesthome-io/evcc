@@ -1,0 +1,14 @@
+# Thin image: base evcc image (embedded classic UI) plus an alternative UI flavor from ui/<FLAVOR>
+ARG BASE_IMAGE=evcc:latest
+
+FROM --platform=$BUILDPLATFORM node:24-alpine AS ui
+ARG FLAVOR
+WORKDIR /build
+COPY ui/${FLAVOR}/package*.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+COPY ui/${FLAVOR}/ ./
+RUN npm run build
+
+FROM ${BASE_IMAGE}
+COPY --from=ui /build/dist /ui
+ENV EVCC_UI_DIR=/ui

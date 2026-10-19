@@ -25,6 +25,9 @@ const (
 	flagDisableAuth            = "disable-auth"
 	flagDisableAuthDescription = "Disable authentication (dangerous)"
 
+	flagUIDir            = "ui-dir"
+	flagUIDirDescription = "Serve the UI from this directory instead of the built-in one. Must contain index.html."
+
 	flagCustomCss            = "custom-css"
 	flagCustomCssDescription = "Additional user-defined CSS file for custom styling. No compatibility guarantees."
 
