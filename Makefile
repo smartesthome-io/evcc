@@ -15,7 +15,7 @@ COMMIT := $(SHA)
 ifeq ($(RELEASE),1)
     COMMIT :=
 endif
-VERSION := $(if $(TAG_NAME),$(TAG_NAME),$(SHA))
+VERSION := $(if $(TAG_NAME),$(TAG_NAME),0.0.0-dev.$(SHA))
 BUILD_TAGS := -tags=release
 LD_FLAGS := -X github.com/evcc-io/evcc/util.Version=$(VERSION) -X github.com/evcc-io/evcc/util.Commit=$(COMMIT) -s -w
 BUILD_ARGS := -trimpath -ldflags='$(LD_FLAGS)'
