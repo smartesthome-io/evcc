@@ -125,6 +125,8 @@ jobs:
         run: |
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y postgresql-client-18
+          # the runner image puts an older version first
+          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
 
       - name: Test
         run: mkdir dist && touch dist/empty && make test-postgres
@@ -168,6 +170,8 @@ jobs:
         run: |
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y postgresql-client-18
+          # the runner image puts an older version first
+          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
 
       - name: Test
         run: mkdir dist && touch dist/empty && make test-postgres
